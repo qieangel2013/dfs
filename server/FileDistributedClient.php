@@ -25,7 +25,7 @@ class FileDistributedClient
         require_once __DIR__.'/lib/phpredis.php';
         require_once __DIR__.'/lib/dredis.php';
         $this->table = new swoole_table(1024);
-        $this->table->column('clientfd', swoole_table::TYPE_INT, 8); 
+        $this->table->column('fileclientfd', swoole_table::TYPE_INT, 8); 
         $this->table->create();
 	}
 

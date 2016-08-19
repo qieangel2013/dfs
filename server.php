@@ -41,7 +41,7 @@ switch ($ser_ser[1]) {
     case 'start':
         $process = new swoole_process('server_call', true);
 		$pid = $process->start();
-		swoole_process::daemon(true);
+		swoole_process::daemon(false);
 		swoole_process::wait();
         break;
     case 'stop':
@@ -53,7 +53,7 @@ switch ($ser_ser[1]) {
         echo "Kill all process success.\n"; 
         $process = new swoole_process('server_call', true);
 		$pid = $process->start();
-		swoole_process::daemon(true);
+		swoole_process::daemon(false);
 		swoole_process::wait();
         break;
     default:
