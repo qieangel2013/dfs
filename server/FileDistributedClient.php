@@ -32,11 +32,11 @@ class FileDistributedClient
 	 public function addServerClient($address)
     {
        	$client = new swoole_client(SWOOLE_TCP, SWOOLE_SOCK_ASYNC);
-        $client->set(array(
+        /*$client->set(array(
             'socket_buffer_size' => 1024 * 1024 * 2,
             'open_eof_check' => true,
             'package_eof' => "\r\n\r\n",
-        ));
+        ));*/
         $client->on('Connect', array(&$this, 'onConnect'));
         $client->on('Receive', array(&$this, 'onReceive'));
         $client->on('Close', array(&$this, 'onClose'));
@@ -54,7 +54,11 @@ class FileDistributedClient
     }
 
 	public function onReceive($client,$data) {
-		
+		 $remote_info=json_decode($data, true);
+		 if($remote_info['type']=='filemes'){
+		 	if($client->sendfile($remote_info['data']['path'])){
+            }
+		 }
 	}
 	public function onTask($serv, $task_id, $from_id, $data) {
         $fd = json_decode($data, true);

@@ -22,6 +22,7 @@ class FileDistributedServer
     private $curpath;
     private $curtmp;
     private $filefd;
+    private $filesizes;
 	public function __construct() {
 		require_once dirname(__DIR__).'/config/config.php';
 		require_once __DIR__.'/FileDistributedClient.php';
@@ -68,6 +69,7 @@ class FileDistributedServer
         $this->table->set(ip2long($this->localip),array('fileserverfd'=>ip2long($this->localip)));
         $this->b_server_pool[ip2long($this->localip)]=array('fd' =>$this->localip,'client'=>$localclient);
 		$this->filefd = inotify_init();
+        //$watch_descriptor = inotify_add_watch($this->filefd,LISTENPATH,IN_ALL_EVENTS);
 		$watch_descriptor = inotify_add_watch($this->filefd,LISTENPATH,IN_MOVED_TO|IN_CLOSE_WRITE);//IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
 		swoole_event_add($this->filefd,function($fd)use($localclient){
             $events = inotify_read($fd);
@@ -117,13 +119,24 @@ class FileDistributedServer
         $remote_info=json_decode($data, true);
         //判断是否为二进制图片流
         if(!is_array($remote_info)){
-            if($this->curpath){
-                if(is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))){
+            if(isset($this->curpath['path'])){
+                /*if(is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))){
                 }else{
                     mkdir(dirname($this->curpath['path']),0777,true);
+                }*/
+                $infofile=pathinfo($this->curpath['path']);
+                if(in_array($infofile['extension'],array('txt','log'))){
+                    if(file_put_contents($this->curpath['path'],$data,FILE_APPEND)){
+                    }
+                }else{
+                    if(in_array($infofile['extension'],array('jpg','png','jpeg','JPG','JPEG','PNG','bmp'))){
+                        if(strlen($data)>1000){
+                            if(file_put_contents($this->curpath['path'],$data,FILE_APPEND)){
+                            }//写入图片流
+                        }
+                    }
                 }
-                if(file_put_contents($this->curpath['path'],$data,FILE_APPEND)){
-                }//写入图片流
+                
             }
         }else{
             if($remote_info['type']=='system' && $remote_info['data']['code']==10001){
@@ -149,22 +162,29 @@ class FileDistributedServer
         		case 'file':
                     if(isset($remote_info['data']['path'])){
                         $this->curpath=$remote_info['data'];
+                        $this->filesizes=$remote_info['data']['size'];
+                        $data_s=array('type'=>'filemes','data'=>array('path' =>$remote_info['data']['path'],'size'=>filesize($remote_info['data']['path'])));
+                        $serv->send($fd,json_encode($data_s,true));
                     }                    
         			break;
                 case 'fileclient':
-                    $data=array('type'=>'file','data'=>array('path' =>$remote_info['data']['path']));
-                    foreach ($this->b_server_pool as $k => $v) {
-                        if(file_exists($remote_info['data']['path'])){
-                            if($this->localip!=$this->connectioninfo['remote_ip'] && $this->curpath['path']!=$remote_info['data']['path']){      
-                                if($v['client']->send(json_encode($data))){
-                                    if($v['client']->sendfile($remote_info['data']['path'])){
+                    $infofile=pathinfo($remote_info['data']['path']);
+                    if(in_array($infofile['extension'],array('txt','log','jpg','png','jpeg','JPG','JPEG','PNG','bmp'))){
+                    if(isset($this->curpath['path']) && $remote_info['data']['path']==$this->curpath['path']){
+                    }else{
+                        $datas=array('type'=>'file','data'=>array('path' =>$remote_info['data']['path'],'size'=>filesize($remote_info['data']['path'])));
+                        foreach ($this->b_server_pool as $k => $v) {
+                            if(file_exists($remote_info['data']['path'])){
+                                if($this->localip!=$this->connectioninfo['remote_ip'] && $this->curpath['path']!=$remote_info['data']['path']){      
+                                    if($v['client']->send(json_encode($datas))){
                                     }
                                 }
-                            }
                                         
-                        }
+                            }
                            
-                    } 
+                        } 
+                    }
+                    }
                     break;
         		default:
         			break;

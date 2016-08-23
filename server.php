@@ -33,7 +33,7 @@ function server_call(swoole_process $worker)
 	FileDistributedServer::getInstance();
 }
 $ser_ser=$argv;
-$pid=-6;
+$cmd="/usr/local/php/bin/php";//php的绝对路径
 if(!isset($ser_ser[1])){
      exit("No argv.\n");
  }else{
@@ -45,11 +45,11 @@ switch ($ser_ser[1]) {
 		swoole_process::wait();
         break;
     case 'stop':
-        exec("kill -9 ".$pid);
+        exec("ps -ef | grep -E '".$cmd."' |grep -v 'grep'| awk '{print $2}'|xargs kill -9 > /dev/null 2>&1 &");
         echo "Kill all process success.\n"; 
         break;
      case 'restart':
-        exec("kill -9 ".$pid);
+        exec("ps -ef | grep -E '".$cmd."' |grep -v 'grep'| awk '{print $2}'|xargs kill -9 > /dev/null 2>&1 &");
         echo "Kill all process success.\n"; 
         $process = new swoole_process('server_call', true);
 		$pid = $process->start();
