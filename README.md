@@ -1,5 +1,5 @@
 #分布式文件服务器
-    基于swoole和inotify实现分布式文件服务器（目前只支持指定目录，子目录随后会机上）
+    基于swoole和inotify实现分布式文件服务器（目前只支持指定目录，子目录随后会加上）
 #服务启动
     需要php以cli模式运行/server.php
       php server.php start
