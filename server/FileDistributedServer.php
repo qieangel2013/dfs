@@ -32,8 +32,8 @@ class FileDistributedServer
 		if(isset($ServerLog)){
 			$server->set(
 			array(
-            'worker_num'            => 4,
-            'task_worker_num' 		=> 4,
+            'worker_num'            => 1,
+            //'task_worker_num' 		=> 4,
             'dispatch_mode'         => 4, //1: 轮循, 3: 争抢
             //'daemonize' => true,
             'log_file' => $ServerLog
@@ -42,8 +42,8 @@ class FileDistributedServer
 		}else{
 			$server->set(
 			array(
-            'worker_num'            => 4,
-            'task_worker_num' 		=> 4,
+            'worker_num'            => 1,
+            //'task_worker_num' 		=> 4,
             'dispatch_mode'         => 4, //1: 轮循, 3: 争抢
             //'daemonize' => true
 			)
@@ -53,8 +53,8 @@ class FileDistributedServer
 		$server->on('WorkerStart',array(&$this , 'onWorkerStart'));
 		$server->on('Connect',array(&$this , 'onConnect'));
 		$server->on('Receive',array(&$this , 'onReceive'));
-		$server->on('Task',array(&$this , 'onTask'));
-		$server->on('Finish',array(&$this , 'onFinish'));
+		//$server->on('Task',array(&$this , 'onTask'));
+		//$server->on('Finish',array(&$this , 'onFinish'));
 		$server->on('Close',array(&$this , 'onClose'));
 		$server->on('ManagerStop',array(&$this , 'onManagerStop'));
 		$server->on('WorkerError',array(&$this , 'onWorkerError'));
@@ -62,59 +62,43 @@ class FileDistributedServer
 	}
 
 	public function onStart($serv){
-		$localinfo=swoole_get_local_ip();
-		$this->localip=$localinfo['eth0'];
-		$serverlist=FileDistributedClient::getInstance()->getserlist();
-		$result_fd=json_decode($serverlist,true);
-		if(!empty($result_fd)){
-			foreach($result_fd as $id=>$fd){
-				if($fd!=$localinfo['eth0']){
-					$client=FileDistributedClient::getInstance()->addServerClient($fd);
-					$this->table->set(ip2long($fd),array('fileserverfd'=>ip2long($fd)));
-					$this->b_server_pool[ip2long($fd)]=array('fd' =>$fd,'client'=>$client);
-				}
-    		}
-		}
-		FileDistributedClient::getInstance()->appendserlist($this->localip,ip2long($this->localip));
+        $localinfo=swoole_get_local_ip();
+        $this->localip=$localinfo['eth0'];
+        $localclient=FileDistributedClient::getInstance()->addServerClient($this->localip);
+        $this->table->set(ip2long($this->localip),array('fileserverfd'=>ip2long($this->localip)));
+        $this->b_server_pool[ip2long($this->localip)]=array('fd' =>$this->localip,'client'=>$localclient);
 		$this->filefd = inotify_init();
-		$watch_descriptor = inotify_add_watch($this->filefd,LISTENPATH,IN_ALL_EVENTS);
-		swoole_event_add($this->filefd,array(&$this , 'eventquery'));
-	}
-	public function eventquery($fd){
-		$events = inotify_read($fd);
-    	if ($events){
-    		foreach ($events as $kk => $vv) {
-    			if(isset($vv['name'])){
-                    if($this->curtmp!=$vv['name']){
-                    $path_listen=LISTENPATH.'/'.$vv['name'];
-                    $fileinfo=pathinfo($this->curpath['path']);
-        			$data=array('type'=>'file','data'=>array('path' =>$path_listen));
-                    if($fileinfo['basename']!=$vv['name']){
-                                foreach ($this->b_server_pool as $k => $v) {
-                                    if(file_exists($path_listen)){
-                                        //if($v['client'] instanceof swoole_client){
-                                            if($v['client']->send(json_encode($data))){
-                                                if($v['client']->sendfile($path_listen)){
-                                                     $this->curtmp=$vv['name'];
-                                                }
-                                            }
-                                       // }
-                                        
-                                    }
-                           
-                                } 
-                        
-                        } 
+		$watch_descriptor = inotify_add_watch($this->filefd,LISTENPATH,IN_MOVED_TO|IN_CLOSE_WRITE);//IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
+		swoole_event_add($this->filefd,function($fd)use($localclient){
+            $events = inotify_read($fd);
+            if ($events){
+                foreach ($events as $kk => $vv) {
+                    if(isset($vv['name'])){
+                        $path_listen=LISTENPATH.'/'.$vv['name'];
+                        $data=array('type'=>'fileclient','data'=>array('path' =>$path_listen));
+                        $localclient->send(json_encode($data),true);
                     }
-                    
-        	}
-    		}
-        	
-    	}
-		
+                }
+            
+            }
+        });
 	}
-	public function onWorkerStart($serv,$worker_id){
+ 	public function onWorkerStart($serv,$worker_id){
 		//swoole_timer_tick(1000,array(&$this , 'onTimer'));
+        $localinfo=swoole_get_local_ip();
+        $this->localip=$localinfo['eth0'];
+        $serverlist=FileDistributedClient::getInstance()->getserlist();
+        $result_fd=json_decode($serverlist,true);
+        if(!empty($result_fd)){
+            foreach($result_fd as $id=>$fd){
+                if($fd!=$localinfo['eth0']){
+                    $client=FileDistributedClient::getInstance()->addServerClient($fd);
+                    $this->table->set(ip2long($fd),array('fileserverfd'=>ip2long($fd)));
+                    $this->b_server_pool[ip2long($fd)]=array('fd' =>$fd,'client'=>$client);
+                }
+            }
+        }
+        FileDistributedClient::getInstance()->appendserlist($this->localip,ip2long($this->localip));
 	}
 
 	public function onConnect($serv,$fd){
@@ -133,14 +117,12 @@ class FileDistributedServer
         $remote_info=json_decode($data, true);
         //判断是否为二进制图片流
         if(!is_array($remote_info)){
-            if(is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))){
-            }else{
-                mkdir(dirname($this->curpath['path']),0777,true);
-            }
             if($this->curpath){
+                if(is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))){
+                }else{
+                    mkdir(dirname($this->curpath['path']),0777,true);
+                }
                 if(file_put_contents($this->curpath['path'],$data,FILE_APPEND)){
-                    //$fiinfo=pathinfo($this->curpath['path']);
-                    //$serv->send($fd,json_encode(array('type'=>'file','data'=>array('code' =>10001,'status'=>1,'filename'=>$fiinfo['basename']))));
                 }//写入图片流
             }
         }else{
@@ -148,12 +130,12 @@ class FileDistributedServer
          		if($this->client_a!=$remote_info['data']['fd']){
          			if(!$this->table->get(ip2long($remote_info['data']['fd']))){
          				$client=FileDistributedClient::getInstance()->addServerClient($remote_info['data']['fd']);
-         				$this->b_server_pool[ip2long($remote_info['data']['fd'])]=array('fd' =>$remote_info['data']['fd'],'client'=>$client);
+                        $this->b_server_pool[ip2long($remote_info['data']['fd'])]=array('fd' =>$remote_info['data']['fd'],'client'=>$client);
          				$this->client_a=$remote_info['data']['fd'];
          			}else{
          				if(FileDistributedClient::getInstance()->getkey()){
          					$client=FileDistributedClient::getInstance()->addServerClient($remote_info['data']['fd']);
-         					$this->b_server_pool[ip2long($remote_info['data']['fd'])]=array('fd' =>$remote_info['data']['fd'],'client'=>$client);
+                            $this->b_server_pool[ip2long($remote_info['data']['fd'])]=array('fd' =>$remote_info['data']['fd'],'client'=>$client);
          					$this->client_a=$remote_info['data']['fd'];
         					if($this->localip==FileDistributedClient::getInstance()->getkey()){
         						FileDistributedClient::getInstance()->delkey();
@@ -164,27 +146,26 @@ class FileDistributedServer
         		}
         }else{
         	   switch ($remote_info['type']) {
-        		case 'sql':
-        			if($this->localip==$this->connectioninfo['remote_ip']){
-                        foreach ($this->b_server_pool as $k => $v) {
-                            $v['client']->send($data);
-                        }
-        				$serv->send($fd,$serv->taskwait($remote_info['data']));
-        			}else{
-        				print_r($remote_info);
-                        $serv->task($remote_info['data']);
-        			}
-        			break;
         		case 'file':
                     if(isset($remote_info['data']['path'])){
                         $this->curpath=$remote_info['data'];
-                    }else{
-                        //if(isset($remote_info['data']['code'])){
-                           // $this->curtmp=$remote_info['data']['filename'];
-                        //}
-                    }
-                    
+                    }                    
         			break;
+                case 'fileclient':
+                    $data=array('type'=>'file','data'=>array('path' =>$remote_info['data']['path']));
+                    foreach ($this->b_server_pool as $k => $v) {
+                        if(file_exists($remote_info['data']['path'])){
+                            if($this->localip!=$this->connectioninfo['remote_ip'] && $this->curpath['path']!=$remote_info['data']['path']){      
+                                if($v['client']->send(json_encode($data))){
+                                    if($v['client']->sendfile($remote_info['data']['path'])){
+                                    }
+                                }
+                            }
+                                        
+                        }
+                           
+                    } 
+                    break;
         		default:
         			break;
         	   }
@@ -202,21 +183,20 @@ class FileDistributedServer
     	if(!empty($this->client_pool)){
     		foreach ($this->client_pool as $k => $v) {
         		if($v['fd']==$fd){
-        			FileDistributedClient::getInstance()->removeuser($v['remote_ip'],'Distributed');
+        			FileDistributedClient::getInstance()->removeuser($v['remote_ip'],'FileDistributed');
         			print_r($v['remote_ip']." have closed\n");
         			unset($this->client_pool[$k]);
         		}
         	}
     	}else{
-    		FileDistributedClient::getInstance()->removeuser($this->localip,'Distributed');
+    		FileDistributedClient::getInstance()->removeuser($this->localip,'FileDistributed');
         	print_r($this->localip." have closed\n");
     	}
-        
     }
 
     public function onManagerStop($serv){
     	if(empty($this->client_pool)){
-    		FileDistributedClient::getInstance()->removeuser($this->localip,'Distributed');
+    		FileDistributedClient::getInstance()->removeuser($this->localip,'FileDistributed');
         	print_r($this->localip." have closed\n");
     	}
         swoole_event_del($this->filefd);
@@ -224,7 +204,7 @@ class FileDistributedServer
 
     public function onWorkerError($serv, $worker_id, $worker_pid, $exit_code){
     	if(empty($this->client_pool)){
-    		FileDistributedClient::getInstance()->removeuser($this->localip,'Distributed');
+    		FileDistributedClient::getInstance()->removeuser($this->localip,'FileDistributed');
         	print_r($this->localip." have closed\n");
     	}
     }
@@ -239,13 +219,6 @@ class FileDistributedServer
 	}
 	public function onFinish($serv, $task_id, $data) {
 		
-	}
-	public function onTimer($timer_id,$params = null) {
-		$serverlist=FileDistributedClient::getInstance()->geterrlist(json_encode($this->b_server_pool));
-		if($serverlist){
-			unset($this->b_server_pool[ip2long($serverlist)]);
-			$this->table->del(ip2long($serverlist));
-		}
 	}
 	public static function getInstance() {
 		if (!(self::$instance instanceof FileDistributedServer)) {
