@@ -7,7 +7,7 @@
     1.基于swoole和inotify实现分布式文件服务
     2.文件实时同步服务
     3.文件实时监控及监控子目录服务
-    3.自动断线重连服务
+    4.自动断线重连服务
 #服务启动
     需要php以cli模式运行/server.php
       php server.php start
