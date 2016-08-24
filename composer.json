@@ -1,0 +1,17 @@
+{
+    "name": "qieangel2013/dfs",
+    "description": "distributed file service",
+    "type": "framework",
+    "keywords": ["swoole","inotify"],
+    "license": "Apache2",
+    "authors": [
+        {
+            "name": "qieangel2013",
+            "email": "904208360@qq.com"
+        }
+    ],
+    "require": {
+        "php": ">=5.5"
+    },
+    "minimum-stability": "dev"
+}
