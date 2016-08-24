@@ -26,23 +26,22 @@ if(!extension_loaded('swoole'))
 if(php_sapi_name() !== 'cli'){
     exit("Please use php cli mode.\n");
 }
-
-function server_call(swoole_process $worker)
+$cmd="/usr/local/php/bin/php";//php的绝对路径
+function server_call($cmd)
 {
-	require_once __DIR__.'/server/FileDistributedServer.php';
-	FileDistributedServer::getInstance();
+
+    foreach(glob(__DIR__.'/server/FileDistributedServer.php') as $start_file)
+    {
+        exec($cmd.' '.$start_file);
+    }
 }
 $ser_ser=$argv;
-$cmd="/usr/local/php/bin/php";//php的绝对路径
 if(!isset($ser_ser[1])){
      exit("No argv.\n");
  }else{
 switch ($ser_ser[1]) {
     case 'start':
-        $process = new swoole_process('server_call', true);
-		$pid = $process->start();
-		swoole_process::daemon(false);
-		swoole_process::wait();
+        call_user_func('server_call',$cmd);
         break;
     case 'stop':
         exec("ps -ef | grep -E '".$cmd."' |grep -v 'grep'| awk '{print $2}'|xargs kill -9 > /dev/null 2>&1 &");
@@ -51,10 +50,7 @@ switch ($ser_ser[1]) {
      case 'restart':
         exec("ps -ef | grep -E '".$cmd."' |grep -v 'grep'| awk '{print $2}'|xargs kill -9 > /dev/null 2>&1 &");
         echo "Kill all process success.\n"; 
-        $process = new swoole_process('server_call', true);
-		$pid = $process->start();
-		swoole_process::daemon(false);
-		swoole_process::wait();
+        call_user_func('server_call',$cmd);
         break;
     default:
         exit("Not support this argv.\n");

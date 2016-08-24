@@ -22,7 +22,6 @@ class FileDistributedServer
     private $curpath;
     private $curtmp;
     private $filefd;
-    private $filesizes;
 	public function __construct() {
 		require_once dirname(__DIR__).'/config/config.php';
 		require_once __DIR__.'/FileDistributedClient.php';
@@ -36,7 +35,7 @@ class FileDistributedServer
             'worker_num'            => 1,
             //'task_worker_num' 		=> 4,
             'dispatch_mode'         => 4, //1: 轮循, 3: 争抢
-            //'daemonize' => true,
+            'daemonize' => true,
             'log_file' => $ServerLog
 			)
 			);
@@ -46,7 +45,7 @@ class FileDistributedServer
             'worker_num'            => 1,
             //'task_worker_num' 		=> 4,
             'dispatch_mode'         => 4, //1: 轮循, 3: 争抢
-            //'daemonize' => true
+            'daemonize' => true
 			)
 			);
 		}
@@ -162,8 +161,7 @@ class FileDistributedServer
         		case 'file':
                     if(isset($remote_info['data']['path'])){
                         $this->curpath=$remote_info['data'];
-                        $this->filesizes=$remote_info['data']['size'];
-                        $data_s=array('type'=>'filemes','data'=>array('path' =>$remote_info['data']['path'],'size'=>filesize($remote_info['data']['path'])));
+                        $data_s=array('type'=>'filemes','data'=>array('path' =>$remote_info['data']['path']));
                         $serv->send($fd,json_encode($data_s,true));
                     }                    
         			break;
@@ -172,7 +170,7 @@ class FileDistributedServer
                     if(in_array($infofile['extension'],array('txt','log','jpg','png','jpeg','JPG','JPEG','PNG','bmp'))){
                     if(isset($this->curpath['path']) && $remote_info['data']['path']==$this->curpath['path']){
                     }else{
-                        $datas=array('type'=>'file','data'=>array('path' =>$remote_info['data']['path'],'size'=>filesize($remote_info['data']['path'])));
+                        $datas=array('type'=>'file','data'=>array('path' =>$remote_info['data']['path']));
                         foreach ($this->b_server_pool as $k => $v) {
                             if(file_exists($remote_info['data']['path'])){
                                 if($this->localip!=$this->connectioninfo['remote_ip'] && $this->curpath['path']!=$remote_info['data']['path']){      
@@ -247,3 +245,4 @@ class FileDistributedServer
         return self::$instance;
 	}
 }
+FileDistributedServer::getInstance();

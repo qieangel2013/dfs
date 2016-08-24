@@ -10,5 +10,4 @@
 |---------------------------------------------------------------
 */
 	require_once dirname(__DIR__).'/server/FileDistributedServer.php';
-	FileDistributedServer::getInstance();
 ?>
