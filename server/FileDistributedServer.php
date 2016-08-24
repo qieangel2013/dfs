@@ -22,6 +22,7 @@ class FileDistributedServer
     private $curpath;
     private $curtmp;
     private $filefd;
+    private $wd=array();
 	public function __construct() {
 		require_once dirname(__DIR__).'/config/config.php';
 		require_once __DIR__.'/FileDistributedClient.php';
@@ -68,16 +69,22 @@ class FileDistributedServer
         $this->table->set(ip2long($this->localip),array('fileserverfd'=>ip2long($this->localip)));
         $this->b_server_pool[ip2long($this->localip)]=array('fd' =>$this->localip,'client'=>$localclient);
 		$this->filefd = inotify_init();
-        //$watch_descriptor = inotify_add_watch($this->filefd,LISTENPATH,IN_ALL_EVENTS);
-		$watch_descriptor = inotify_add_watch($this->filefd,LISTENPATH,IN_MOVED_TO|IN_CLOSE_WRITE);//IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
+		$watch_descriptor = inotify_add_watch($this->filefd,LISTENPATH,IN_CREATE|IN_MOVED_TO|IN_CLOSE_WRITE);//IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
+        $this->wd[$watch_descriptor]=array('wd' =>$watch_descriptor,'path'=>LISTENPATH);
 		swoole_event_add($this->filefd,function($fd)use($localclient){
             $events = inotify_read($fd);
             if ($events){
                 foreach ($events as $kk => $vv) {
                     if(isset($vv['name'])){
-                        $path_listen=LISTENPATH.'/'.$vv['name'];
-                        $data=array('type'=>'fileclient','data'=>array('path' =>$path_listen));
-                        $localclient->send(json_encode($data),true);
+                        if($vv['mask']==1073742080){
+                            $wd = inotify_add_watch($this->filefd,LISTENPATH.$vv['name'],IN_MOVED_TO|IN_CLOSE_WRITE);
+                            $this->wd[$wd]=array('wd' =>$wd,'path'=>LISTENPATH.$vv['name']);
+                        }else{
+                            $path_listen=$this->wd[$vv['wd']]['path'].'/'.$vv['name'];
+                            $data=array('type'=>'fileclient','data'=>array('path' =>$path_listen));
+                            $localclient->send(json_encode($data),true);
+                        }
+                        
                     }
                 }
             
@@ -119,10 +126,10 @@ class FileDistributedServer
         //判断是否为二进制图片流
         if(!is_array($remote_info)){
             if(isset($this->curpath['path'])){
-                /*if(is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))){
+                if(is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))){
                 }else{
                     mkdir(dirname($this->curpath['path']),0777,true);
-                }*/
+                }
                 $infofile=pathinfo($this->curpath['path']);
                 if(in_array($infofile['extension'],array('txt','log'))){
                     if(file_put_contents($this->curpath['path'],$data,FILE_APPEND)){
