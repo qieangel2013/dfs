@@ -31,7 +31,7 @@ class FileDistributedServer
         $this->table->column('fileserverfd', swoole_table::TYPE_INT, 8);
         $this->table->create();
         $server = new swoole_server(ServerIp, ServerPort, SWOOLE_PROCESS, SWOOLE_SOCK_TCP);
-        if (isset($ServerLog)) {
+        if (isset(ServerLog)) {
             $server->set(array(
                 'worker_num' => 1,
                 //'task_worker_num'         => 4,
