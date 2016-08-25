@@ -24,6 +24,7 @@ class FileDistributedServer
     private $filefd;
     private $filesizes;
     private $tmpdata;
+    private $oldpath;
     private $wd = array();
     public function __construct()
     {
@@ -176,8 +177,9 @@ class FileDistributedServer
                 } else {
                     mkdir(dirname($this->curpath['path']), 0777, true);
                 }
-                
-                $this->tmpdata .= $data;
+                if ($this->oldpath != $this->curpath['path']) {
+                    $this->tmpdata .= $data;
+                }
                 if (strlen($this->tmpdata) == $this->filesizes) {
                     $infofile = pathinfo($this->curpath['path']);
                     if (in_array($infofile['extension'], array(
@@ -185,7 +187,8 @@ class FileDistributedServer
                         'log'
                     ))) {
                         if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
-                            $this->tmpdata = 0;
+                            $this->tmpdata = '';
+                            $this->oldpath = $this->curpath['path'];
                         }
                     } else {
                         if (in_array($infofile['extension'], array(
@@ -198,7 +201,8 @@ class FileDistributedServer
                             'bmp'
                         ))) {
                             if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
-                                $this->tmpdata = 0;
+                                $this->tmpdata = '';
+                                $this->oldpath = $this->curpath['path'];
                             } //写入图片流
                         }
                     }
