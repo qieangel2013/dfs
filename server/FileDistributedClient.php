@@ -33,11 +33,6 @@ class FileDistributedClient
     public function addServerClient($address)
     {
         $client = new swoole_client(SWOOLE_TCP, SWOOLE_SOCK_ASYNC);
-        /*$client->set(array(
-        'socket_buffer_size' => 1024 * 1024 * 2,
-        'open_eof_check' => true,
-        'package_eof' => "\r\n\r\n",
-        ));*/
         $client->on('Connect', array(
             &$this,
             'onConnect'
@@ -80,6 +75,16 @@ class FileDistributedClient
     {
         $remote_info = json_decode($data, true);
         if ($remote_info['type'] == 'filemes') {
+            $strlendata = file_get_contents($remote_info['data']['path']);
+            $datas      = array(
+                'type' => 'filesize',
+                'data' => array(
+                    'path' => $remote_info['data']['path'],
+                    'filesize' => strlen($strlendata)
+                )
+            );
+            $client->send(json_encode($datas, true));
+        } else if ($remote_info['type'] == 'filesizemes') {
             if ($client->sendfile($remote_info['data']['path'])) {
             }
         }

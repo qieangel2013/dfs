@@ -22,6 +22,8 @@ class FileDistributedServer
     private $curpath;
     private $curtmp;
     private $filefd;
+    private $filesizes;
+    private $tmpdata;
     private $wd = array();
     public function __construct()
     {
@@ -93,9 +95,9 @@ class FileDistributedServer
             'client' => $localclient
         );
         $this->filefd                                 = inotify_init();
-        $watch_descriptor                             = inotify_add_watch($this->filefd, LISTENPATH, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE); //IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
-        $this->wd[$watch_descriptor]                  = array(
-            'wd' => $watch_descriptor,
+        $wd                                           = inotify_add_watch($this->filefd, LISTENPATH, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE); //IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
+        $this->wd[$wd]                                = array(
+            'wd' => $wd,
             'path' => LISTENPATH
         );
         swoole_event_add($this->filefd, function($fd) use ($localclient)
@@ -105,10 +107,10 @@ class FileDistributedServer
                 foreach ($events as $kk => $vv) {
                     if (isset($vv['name'])) {
                         if ($vv['mask'] == 1073742080) {
-                            $wd            = inotify_add_watch($this->filefd, LISTENPATH . $vv['name'], IN_MOVED_TO | IN_CLOSE_WRITE);
+                            $wd            = inotify_add_watch($this->filefd, LISTENPATH . '/' . $vv['name'], IN_MOVED_TO | IN_CLOSE_WRITE);
                             $this->wd[$wd] = array(
                                 'wd' => $wd,
-                                'path' => LISTENPATH . $vv['name']
+                                'path' => LISTENPATH . '/' . $vv['name']
                             );
                         } else {
                             $path_listen = $this->wd[$vv['wd']]['path'] . '/' . $vv['name'];
@@ -174,30 +176,33 @@ class FileDistributedServer
                 } else {
                     mkdir(dirname($this->curpath['path']), 0777, true);
                 }
-                $infofile = pathinfo($this->curpath['path']);
-                if (in_array($infofile['extension'], array(
-                    'txt',
-                    'log'
-                ))) {
-                    if (file_put_contents($this->curpath['path'], $data, FILE_APPEND)) {
-                    }
-                } else {
+                
+                $this->tmpdata .= $data;
+                if (strlen($this->tmpdata) == $this->filesizes) {
+                    $infofile = pathinfo($this->curpath['path']);
                     if (in_array($infofile['extension'], array(
-                        'jpg',
-                        'png',
-                        'jpeg',
-                        'JPG',
-                        'JPEG',
-                        'PNG',
-                        'bmp'
+                        'txt',
+                        'log'
                     ))) {
-                        if (strlen($data) > 1000) {
-                            if (file_put_contents($this->curpath['path'], $data, FILE_APPEND)) {
+                        if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
+                            $this->tmpdata = 0;
+                        }
+                    } else {
+                        if (in_array($infofile['extension'], array(
+                            'jpg',
+                            'png',
+                            'jpeg',
+                            'JPG',
+                            'JPEG',
+                            'PNG',
+                            'bmp'
+                        ))) {
+                            if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
+                                $this->tmpdata = 0;
                             } //写入图片流
                         }
                     }
                 }
-                
             }
         } else {
             if ($remote_info['type'] == 'system' && $remote_info['data']['code'] == 10001) {
@@ -226,6 +231,18 @@ class FileDistributedServer
                 }
             } else {
                 switch ($remote_info['type']) {
+                    case 'filesize':
+                        if (isset($remote_info['data']['path'])) {
+                            $data_s          = array(
+                                'type' => 'filesizemes',
+                                'data' => array(
+                                    'path' => $remote_info['data']['path']
+                                )
+                            );
+                            $this->filesizes = $remote_info['data']['filesize'];
+                            $serv->send($fd, json_encode($data_s, true));
+                        }
+                        break;
                     case 'file':
                         if (isset($remote_info['data']['path'])) {
                             $this->curpath = $remote_info['data'];

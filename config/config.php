@@ -14,6 +14,5 @@ define('ServerPort',"9508");
 define('ServerLog',dirname(__DIR__).'/log/FileDistributed.log');
 define('redis_server','192.168.102.163');
 define('redis_port','6379');
-define('MYPATH',dirname(__DIR__));
-define('LISTENPATH',dirname(__DIR__));
+define('LISTENPATH',dirname(__DIR__).'/img');
 ?>
