@@ -108,7 +108,7 @@ class FileDistributedServer
                 foreach ($events as $kk => $vv) {
                     if (isset($vv['name'])) {
                         if ($vv['mask'] == 1073742080) {
-                            $wd            = inotify_add_watch($this->filefd, LISTENPATH . '/' . $vv['name'], IN_MOVED_TO | IN_CLOSE_WRITE);
+                            $wd            = inotify_add_watch($this->filefd, LISTENPATH . '/' . $vv['name'], IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
                             $this->wd[$wd] = array(
                                 'wd' => $wd,
                                 'path' => LISTENPATH . '/' . $vv['name']
