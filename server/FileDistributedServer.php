@@ -25,6 +25,7 @@ class FileDistributedServer
     private $filesizes;
     private $tmpdata;
     private $oldpath;
+    private $listenpath;
     private $wd = array();
     public function __construct()
     {
@@ -95,11 +96,12 @@ class FileDistributedServer
             'fd' => $this->localip,
             'client' => $localclient
         );
+        $this->listenpath                             = LISTENPATH;
         $this->filefd                                 = inotify_init();
-        $wd                                           = inotify_add_watch($this->filefd, LISTENPATH, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE); //IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
+        $wd                                           = inotify_add_watch($this->filefd, $this->listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE); //IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
         $this->wd[$wd]                                = array(
             'wd' => $wd,
-            'path' => LISTENPATH
+            'path' => $this->listenpath
         );
         swoole_event_add($this->filefd, function($fd) use ($localclient)
         {
@@ -108,10 +110,11 @@ class FileDistributedServer
                 foreach ($events as $kk => $vv) {
                     if (isset($vv['name'])) {
                         if ($vv['mask'] == 1073742080) {
-                            $wd            = inotify_add_watch($this->filefd, LISTENPATH . '/' . $vv['name'], IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
+                            $this->listenpath .= '/' . $vv['name'];
+                            $wd            = inotify_add_watch($this->filefd, $this->listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
                             $this->wd[$wd] = array(
                                 'wd' => $wd,
-                                'path' => LISTENPATH . '/' . $vv['name']
+                                'path' => $this->listenpath
                             );
                         } else {
                             $path_listen = $this->wd[$vv['wd']]['path'] . '/' . $vv['name'];
