@@ -108,7 +108,7 @@ class FileDistributedServer
             $events = inotify_read($fd);
             if ($events) {
                 foreach ($events as $kk => $vv) {
-                    if (isset($vv['name'])) {
+                    if (isset($vv['name']) && $vv['mask'] != 256) {
                         if ($vv['mask'] == 1073742080) {
                             $this->listenpath .= '/' . $vv['name'];
                             $wd            = inotify_add_watch($this->filefd, $this->listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
