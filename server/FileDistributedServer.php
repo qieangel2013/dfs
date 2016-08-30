@@ -95,14 +95,14 @@ class FileDistributedServer
             'fd' => $this->localip,
             'client' => $localclient
         );
-        $listenpath                             = LISTENPATH;
+        $listenpath                                   = LISTENPATH;
         $this->filefd                                 = inotify_init();
         $wd                                           = inotify_add_watch($this->filefd, $listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE); //IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
         $this->wd[$wd]                                = array(
             'wd' => $wd,
             'path' => $listenpath
         );
-        swoole_event_add($this->filefd, function($fd) use ($localclient,$listenpath)
+        swoole_event_add($this->filefd, function($fd) use ($localclient, $listenpath)
         {
             $events = inotify_read($fd);
             if ($events) {
