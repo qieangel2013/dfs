@@ -16,7 +16,7 @@
 ###composer 安装
 	{
     		"require": {
-        		"qieangel2013/dfs": "0.1.1"
+        		"qieangel2013/dfs": "0.1.2"
 		 }
 	}
 ###使用介绍
