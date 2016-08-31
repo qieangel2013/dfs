@@ -23,6 +23,8 @@
     安装swoole扩展和inotify扩展
     修改/config/config.php文件相应的配置
     交流群：337937322
+###wiki介绍
+https://github.com/qieangel2013/dfs/wiki
 ###License
     Apache License Version 2.0 see http://www.apache.org/licenses/LICENSE-2.0.html
 ###如果你对我的辛勤劳动给予肯定，请给我捐赠，你的捐赠是我最大的动力
