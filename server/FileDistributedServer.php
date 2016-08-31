@@ -135,7 +135,7 @@ class FileDistributedServer
                             $data        = array(
                                 'type' => 'fileclient',
                                 'data' => array(
-                                    'path' => $path_listen
+                                    'path' => iconv('GB2312', 'UTF-8', $path_listen)
                                 )
                             );
                             $localclient->send(json_encode($data, true));
@@ -278,34 +278,38 @@ class FileDistributedServer
                         break;
                     case 'fileclient':
                         $infofile = pathinfo($remote_info['data']['path']);
-                        if (in_array($infofile['extension'], array(
-                            'txt',
-                            'log',
-                            'jpg',
-                            'png',
-                            'jpeg',
-                            'JPG',
-                            'JPEG',
-                            'PNG',
-                            'bmp'
-                        ))) {
-                            if (isset($this->curpath['path']) && $remote_info['data']['path'] == $this->curpath['path']) {
-                            } else {
-                                $datas = array(
-                                    'type' => 'file',
-                                    'data' => array(
-                                        'path' => $remote_info['data']['path']
-                                    )
-                                );
-                                foreach ($this->b_server_pool as $k => $v) {
-                                    if (file_exists($remote_info['data']['path'])) {
-                                        if ($this->localip != $this->connectioninfo['remote_ip'] && $this->curpath['path'] != $remote_info['data']['path']) {
-                                            if ($v['client']->send(json_encode($datas))) {
+                        if ($infofile['basename']) {
+                            $extend = explode(".", $infofile['basename']);
+                            $va     = count($extend) - 1;
+                            if (in_array($extend[$va], array(
+                                'txt',
+                                'log',
+                                'jpg',
+                                'png',
+                                'jpeg',
+                                'JPG',
+                                'JPEG',
+                                'PNG',
+                                'bmp'
+                            ))) {
+                                if (isset($this->curpath['path']) && $remote_info['data']['path'] == $this->curpath['path']) {
+                                } else {
+                                    $datas = array(
+                                        'type' => 'file',
+                                        'data' => array(
+                                            'path' => $remote_info['data']['path']
+                                        )
+                                    );
+                                    foreach ($this->b_server_pool as $k => $v) {
+                                        if (file_exists($remote_info['data']['path'])) {
+                                            if ($this->localip != $this->connectioninfo['remote_ip'] && $this->curpath['path'] != $remote_info['data']['path']) {
+                                                if ($v['client']->send(json_encode($datas))) {
+                                                }
                                             }
+                                            
                                         }
                                         
                                     }
-                                    
                                 }
                             }
                         }
@@ -316,7 +320,7 @@ class FileDistributedServer
             }
             
         }
-        print_r($remote_info);
+        echo date('[ c ]') . var_export($remote_info, true);
     }
     /**
      * 服务器断开连接
