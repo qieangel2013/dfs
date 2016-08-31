@@ -86,7 +86,7 @@ class FileDistributedServer
     public function onStart($serv)
     {
         $localinfo     = swoole_get_local_ip();
-        $this->localip = $localinfo['eth0'];
+        $this->localip = current($localinfo);
         $localclient   = FileDistributedClient::getInstance()->addServerClient($this->localip);
         $this->table->set(ip2long($this->localip), array(
             'fileserverfd' => ip2long($this->localip)
@@ -102,6 +102,17 @@ class FileDistributedServer
             'wd' => $wd,
             'path' => $listenpath
         );
+        $lisrdir                                      = FileDistributedClient::getInstance()->getlistDir($listenpath);
+        if ($lisrdir) {
+            foreach ($lisrdir as $k => $v) {
+                $wd            = inotify_add_watch($this->filefd, $v, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE); //IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
+                $this->wd[$wd] = array(
+                    'wd' => $wd,
+                    'path' => $v
+                );
+            }
+        }
+        
         swoole_event_add($this->filefd, function($fd) use ($localclient, $listenpath)
         {
             $events = inotify_read($fd);
@@ -110,6 +121,10 @@ class FileDistributedServer
                     if (isset($vv['name']) && $vv['mask'] != 256) {
                         if ($vv['mask'] == 1073742080) {
                             $listenpath .= '/' . $vv['name'];
+                            if (is_dir($listenpath) && is_readable($listenpath)) {
+                            } else {
+                                FileDistributedClient::getInstance()->mklistDir($listenpath);
+                            }
                             $wd            = inotify_add_watch($fd, $listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
                             $this->wd[$wd] = array(
                                 'wd' => $wd,
@@ -136,7 +151,7 @@ class FileDistributedServer
     {
         //swoole_timer_tick(1000,array(&$this , 'onTimer'));
         $localinfo     = swoole_get_local_ip();
-        $this->localip = $localinfo['eth0'];
+        $this->localip = current($localinfo);
         $serverlist    = FileDistributedClient::getInstance()->getserlist();
         $result_fd     = json_decode($serverlist, true);
         if (!empty($result_fd)) {
@@ -160,7 +175,7 @@ class FileDistributedServer
     {
         $this->connectioninfo = $serv->connection_info($fd);
         $localinfo            = swoole_get_local_ip();
-        $this->localip        = $localinfo['eth0'];
+        $this->localip        = current($localinfo);
         if ($this->localip != $this->connectioninfo['remote_ip']) {
             $this->client_pool[ip2long($this->connectioninfo['remote_ip'])] = array(
                 'fd' => $fd,
@@ -177,7 +192,7 @@ class FileDistributedServer
             if (isset($this->curpath['path'])) {
                 if (is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))) {
                 } else {
-                    mkdir(dirname($this->curpath['path']), 0777, true);
+                    FileDistributedClient::getInstance()->mklistDir(dirname($this->curpath['path']));
                 }
                 if ($this->oldpath != $this->curpath['path']) {
                     $this->tmpdata .= $data;

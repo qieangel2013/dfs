@@ -10,6 +10,8 @@ class phpredis
   
     //redis服务端口  
     private $_PORT = null;  
+    //redis 认证  
+    private $_AUTH = null; 
   
     //连接时长 默认为0 不限制时长  
     private $_TIMEOUT = 0;  
@@ -37,6 +39,7 @@ class phpredis
         }else{
             $this->_HOST = $rconfig['server'];  
             $this->_PORT = $rconfig['port']; 
+            $this->_AUTH = isset($rconfig['auth'])?$rconfig['auth']:null;
         }
         $this->_TIMEOUT = 0;  
         $this->_DBNAME = null;  
@@ -56,10 +59,16 @@ class phpredis
     {  
         switch ($type) {  
             case 1:  
-                $this->_REDIS->connect($host, $port, $timeout);  
+                $this->_REDIS->connect($host, $port, $timeout); 
+                if($this->_AUTH) {
+                	$this->_REDIS->auth($this->_AUTH);
+                }
             break;  
             case 2:  
                 $this->_REDIS->pconnect($host, $port, $timeout);  
+                if($this->_AUTH) {
+                	$this->_REDIS->auth($this->_AUTH);
+                }
             break;  
             default:  
             break;  

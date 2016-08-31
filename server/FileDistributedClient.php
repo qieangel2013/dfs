@@ -66,7 +66,7 @@ class FileDistributedClient
             'data' => array(
                 'code' => 10001,
                 'status' => 1,
-                'fd' => $localinfo['eth0']
+                'fd' => current($localinfo)
             )
         )));
     }
@@ -159,6 +159,28 @@ class FileDistributedClient
     public function delkey($keyname = 'errserfile')
     {
         return dredis::getInstance()->delkey($keyname);
+    }
+    //获取目录
+    public function getlistDir($dir)
+    {
+        $dir .= substr($dir, -1) == '/' ? '' : '/';
+        $dirInfo = array();
+        foreach (glob($dir . '*', GLOB_ONLYDIR) as $v) {
+            $dirInfo[] = $v;
+            if (is_dir($v)) {
+                $dirInfo = array_merge($dirInfo, $this->getlistDir($v));
+            }
+        }
+        return $dirInfo;
+    }
+    //创建目录
+    public function mklistDir($dir)
+    {
+        if (is_dir($dir) && is_readable($dir)) {
+            $this->mklistDir(dirname($dir));
+        } else {
+            mkdir($dir, 0777, true);
+        }
     }
     //定时获取移除的服务器
     public function geterrlist($data)

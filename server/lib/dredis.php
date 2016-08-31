@@ -16,6 +16,9 @@ class dredis {
 	public function __construct() {
         $dredis_config['server']=redis_server;
         $dredis_config['port']=redis_port;
+        if(redis_auth){
+        	$dredis_config['auth']=redis_auth;
+        }
 		self::$redis_con=new phpredis($dredis_config);
 	}
 	public function getname($userid){
