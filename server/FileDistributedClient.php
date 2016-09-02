@@ -75,7 +75,7 @@ class FileDistributedClient
     {
         $remote_info = json_decode($data, true);
         if ($remote_info['type'] == 'filemes') {
-            $strlendata = file_get_contents($remote_info['data']['path']);
+            $strlendata = file_get_contents(LISTENPATH .$remote_info['data']['path']);
             $datas      = array(
                 'type' => 'filesize',
                 'data' => array(
@@ -85,7 +85,7 @@ class FileDistributedClient
             );
             $client->send(json_encode($datas, true));
         } else if ($remote_info['type'] == 'filesizemes') {
-            if ($client->sendfile($remote_info['data']['path'])) {
+            if ($client->sendfile(LISTENPATH .$remote_info['data']['path'])) {
             }
         }
     }
@@ -169,6 +169,19 @@ class FileDistributedClient
             $dirInfo[] = $v;
             if (is_dir($v)) {
                 $dirInfo = array_merge($dirInfo, $this->getlistDir($v));
+            }
+        }
+        return $dirInfo;
+    }
+    //获取目录文件
+    public function getlistDirFile($dir)
+    {
+        $dir .= substr($dir, -1) == '/' ? '' : '/';
+        $dirInfo = array();
+        foreach (glob($dir . '*') as $v) {
+            $dirInfo[] = $v;
+            if (is_dir($v)) {
+                $dirInfo = array_merge($dirInfo, $this->getlistDirFile($v));
             }
         }
         return $dirInfo;

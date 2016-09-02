@@ -266,14 +266,16 @@ class FileDistributedServer
                         break;
                     case 'file':
                         if (isset($remote_info['data']['path'])) {
-                            $this->curpath = $remote_info['data'];
-                            $data_s        = array(
+                        	if(!file_exists(LISTENPATH .$remote_info['data']['path'])){
+                        		$this->curpath['path'] = LISTENPATH .$remote_info['data']['path'];
+                            	$data_s        = array(
                                 'type' => 'filemes',
                                 'data' => array(
                                     'path' => $remote_info['data']['path']
                                 )
-                            );
-                            $serv->send($fd, json_encode($data_s, true));
+                            	);
+                            	$serv->send($fd, json_encode($data_s, true));
+                        	}
                         }
                         break;
                     case 'fileclient':
@@ -297,12 +299,12 @@ class FileDistributedServer
                                     $datas = array(
                                         'type' => 'file',
                                         'data' => array(
-                                            'path' => $remote_info['data']['path']
+                                            'path' => substr($remote_info['data']['path'],strlen(LISTENPATH),strlen($remote_info['data']['path']))
                                         )
                                     );
                                     foreach ($this->b_server_pool as $k => $v) {
                                         if (file_exists($remote_info['data']['path'])) {
-                                            if ($this->localip != $this->connectioninfo['remote_ip'] && $this->curpath['path'] != $remote_info['data']['path']) {
+                                            if ($this->localip != $v['fd'] && $this->curpath['path'] != $remote_info['data']['path']) {
                                                 if ($v['client']->send(json_encode($datas))) {
                                                 }
                                             }
@@ -318,9 +320,8 @@ class FileDistributedServer
                         break;
                 }
             }
-            
+            echo date('[ c ]') . str_replace("\n", "",var_export($remote_info, true)) .'\r\n';
         }
-        echo date('[ c ]') . var_export($remote_info, true);
     }
     /**
      * 服务器断开连接
