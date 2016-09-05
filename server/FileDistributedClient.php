@@ -21,6 +21,7 @@ class FileDistributedClient
     private $table;
     private $cur_address;
     private $del_server = array();
+    private $flagclient;
     public function __construct()
     {
         require_once __DIR__ . '/lib/phpredis.php';
@@ -61,7 +62,7 @@ class FileDistributedClient
     public function onConnect($serv)
     {
         $localinfo = swoole_get_local_ip();
-        $serv->send(json_encode(array(
+        $serv->send($this->packmes(array(
             'type' => 'system',
             'data' => array(
                 'code' => 10001,
@@ -73,21 +74,94 @@ class FileDistributedClient
     
     public function onReceive($client, $data)
     {
-        $remote_info = json_decode($data, true);
-        if ($remote_info['type'] == 'filemes') {
-            $strlendata = file_get_contents(LISTENPATH .$remote_info['data']['path']);
-            $datas      = array(
-                'type' => 'filesize',
-                'data' => array(
-                    'path' => $remote_info['data']['path'],
-                    'filesize' => strlen($strlendata)
-                )
-            );
-            $client->send(json_encode($datas, true));
-        } else if ($remote_info['type'] == 'filesizemes') {
-            if ($client->sendfile(LISTENPATH .$remote_info['data']['path'])) {
+        $remote_info = $this->unpackmes($data);
+        if (is_array($remote_info)) {
+            foreach ($remote_info as &$val) {
+                switch ($val['type']) {
+                    case 'filemes':
+                        $strlendata = file_get_contents(LISTENPATH . '/' . $val['data']['path']);
+                        $datas      = array(
+                            'type' => 'filesize',
+                            'data' => array(
+                                'path' => $val['data']['path'],
+                                'filesize' => strlen($strlendata)
+                            )
+                        );
+                        $client->send($this->packmes($datas));
+                        break;
+                    case 'filesizemes':
+                        if ($client->sendfile(LISTENPATH . '/' . $val['data']['path'])) {
+                        }
+                        break;
+                    case 'system': //启动一个进程来处理已存在的图片
+                        $listenpath       = LISTENPATH;
+                        $this->flagclient = $flagclient = 0;
+                        $process = new swoole_process(function($process) use ($listenpath, $flagclient)
+                        {
+                            if (!$flagclient) {
+                                $filelist = $this->getlistDirFile($listenpath);
+                                if (!empty($filelist)) {
+                                    foreach ($filelist as &$v) {
+                                        $process->write($v);
+                                    }
+                                    $flagclient = 1;
+                                }
+                            }
+                            
+                        });
+                        $process->start();
+                        swoole_event_add($process->pipe, function($pipe) use ($client, $listenpath, $process)
+                        {
+                            $data_l   = $process->read();
+                            $infofile = pathinfo($data_l);
+                            if ($infofile['dirname'] == $listenpath) {
+                                $data = array(
+                                    'type' => 'asyncfileclient',
+                                    'data' => array(
+                                        'path' => iconv('GB2312', 'UTF-8', $data_l),
+                                        'fileex' => $infofile,
+                                        'pre' => ''
+                                    )
+                                );
+                            } else {
+                                $data = array(
+                                    'type' => 'asyncfileclient',
+                                    'data' => array(
+                                        'path' => iconv('GB2312', 'UTF-8', $data_l),
+                                        'fileex' => $infofile,
+                                        'pre' => substr($infofile['dirname'], strlen($listenpath), strlen($infofile['dirname']))
+                                    )
+                                );
+                            }
+                            
+                            
+                            $client->send($this->packmes($data));
+                        });
+                        break;
+                    case 'asyncfile':
+                        $data_sa = array(
+                            'type' => 'file',
+                            'data' => array(
+                                'path' => $val['data']['path']
+                            )
+                        );
+                        
+                        $client->send($this->packmes($data_sa));
+                        break;
+                    default:
+                        break;
+                        
+                        
+                }
             }
+            
+            
+        } else {
+            echo date('[ c ]') . '参数不对 \r\n';
         }
+        
+        
+        
     }
     public function onTask($serv, $task_id, $from_id, $data)
     {
@@ -172,6 +246,29 @@ class FileDistributedClient
             }
         }
         return $dirInfo;
+    }
+    //解包装数据
+    public function unpackmes($data, $format = '\r\n\r\n')
+    {
+        $pos = strpos($data, $format);
+        if ($pos !== false) {
+            $tmpdata = explode($format, $data);
+            foreach ($tmpdata as $k => $v) {
+                if (empty($v)) {
+                    unset($tmpdata[$k]);
+                } else {
+                    $tmpdata[$k] = json_decode($v, true);
+                }
+            }
+            return $tmpdata;
+        } else {
+            return $data;
+        }
+    }
+    //包装数据
+    public function packmes($data, $format = '\r\n\r\n')
+    {
+        return json_encode($data, true) . $format;
     }
     //获取目录文件
     public function getlistDirFile($dir)
