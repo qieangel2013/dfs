@@ -79,7 +79,7 @@ class FileDistributedClient
             foreach ($remote_info as &$val) {
                 switch ($val['type']) {
                     case 'filemes':
-                        $strlendata = file_get_contents(LISTENPATH . '/' . $val['data']['path']);
+                        $strlendata = file_get_contents(LISTENPATH . '/' . rawurldecode($val['data']['path']));
                         $datas      = array(
                             'type' => 'filesize',
                             'data' => array(
@@ -90,7 +90,7 @@ class FileDistributedClient
                         $client->send($this->packmes($datas));
                         break;
                     case 'filesizemes':
-                        if ($client->sendfile(LISTENPATH . '/' . $val['data']['path'])) {
+                        if ($client->sendfile(LISTENPATH . '/' . rawurldecode($val['data']['path']))) {
                         }
                         break;
                     case 'system': //启动一个进程来处理已存在的图片
@@ -112,14 +112,18 @@ class FileDistributedClient
                         $process->start();
                         swoole_event_add($process->pipe, function($pipe) use ($client, $listenpath, $process)
                         {
-                            $data_l   = $process->read();
-                            $infofile = pathinfo($data_l);
-                            if ($infofile['dirname'] == $listenpath) {
+                            $data_l = $process->read();
+                            echo $data_l . '\r\n';
+                            $extends = explode("/", $data_l);
+                            $vas     = count($extends) - 1;
+                            $pre_dir = substr($data_l, 0, strripos($data_l, "/") + 1);
+                            if ($pre_dir == $listenpath) {
                                 $data = array(
                                     'type' => 'asyncfileclient',
                                     'data' => array(
-                                        'path' => iconv('GB2312', 'UTF-8', $data_l),
-                                        'fileex' => $infofile,
+                                        //'path' => iconv('GB2312', 'UTF-8', $data_l),
+                                        'path' => rawurlencode($data_l),
+                                        'fileex' => rawurlencode($extends[$vas]),
                                         'pre' => ''
                                     )
                                 );
@@ -127,9 +131,9 @@ class FileDistributedClient
                                 $data = array(
                                     'type' => 'asyncfileclient',
                                     'data' => array(
-                                        'path' => iconv('GB2312', 'UTF-8', $data_l),
-                                        'fileex' => $infofile,
-                                        'pre' => substr($infofile['dirname'], strlen($listenpath), strlen($infofile['dirname']))
+                                        'path' => rawurlencode($data_l),
+                                        'fileex' => rawurlencode($extends[$vas]),
+                                        'pre' => rawurlencode(substr($pre_dir, strlen($listenpath) + 1, strlen($pre_dir)))
                                     )
                                 );
                             }
@@ -276,7 +280,9 @@ class FileDistributedClient
         $dir .= substr($dir, -1) == '/' ? '' : '/';
         $dirInfo = array();
         foreach (glob($dir . '*') as $v) {
-            $dirInfo[] = $v;
+            if (!is_dir($v)) {
+                $dirInfo[] = $v;
+            }
             if (is_dir($v)) {
                 $dirInfo = array_merge($dirInfo, $this->getlistDirFile($v));
             }

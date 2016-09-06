@@ -138,13 +138,16 @@ class FileDistributedServer
                             );
                         } else {
                             $path_listen = $this->wd[$vv['wd']]['path'] . '/' . $vv['name'];
-                            $infofile    = pathinfo($path_listen);
+                            //$infofile    = pathinfo($path_listen);
+                            $extends     = explode("/", $path_listen);
+                            $vas         = count($extends) - 1;
                             if (empty($this->wd[$vv['wd']]['pre'])) {
                                 $data = array(
                                     'type' => 'fileclient',
                                     'data' => array(
-                                        'path' => iconv('GB2312', 'UTF-8', $path_listen),
-                                        'fileex' => $infofile,
+                                        //'path' => iconv('GB2312', 'UTF-8', $path_listen),
+                                        'path' => rawurlencode($path_listen),
+                                        'fileex' => rawurlencode($extends[$vas]),
                                         'pre' => ''
                                     )
                                 );
@@ -152,9 +155,10 @@ class FileDistributedServer
                                 $data = array(
                                     'type' => 'fileclient',
                                     'data' => array(
-                                        'path' => iconv('GB2312', 'UTF-8', $path_listen),
-                                        'fileex' => $infofile,
-                                        'pre' => $this->wd[$vv['wd']]['pre']
+                                        //'path' => iconv('GB2312', 'UTF-8', $path_listen),
+                                        'path' => rawurlencode($path_listen),
+                                        'fileex' => rawurlencode($extends[$vas]),
+                                        'pre' => rawurlencode($this->wd[$vv['wd']]['pre'])
                                     )
                                 );
                             }
@@ -212,7 +216,7 @@ class FileDistributedServer
         if (!is_array($remote_info)) {
             if (!$this->tmpdata_flag) {
                 $tdf                   = array_shift($this->client_pool_ser_c);
-                $this->curpath['path'] = LISTENPATH . '/' . $tdf['data']['path'];
+                $this->curpath['path'] = LISTENPATH . '/' . rawurldecode($tdf['data']['path']);
                 $this->filesizes       = $tdf['data']['filesize'];
                 $this->tmpdata_flag    = 1;
             }
@@ -229,43 +233,43 @@ class FileDistributedServer
                     }
                 }
                 if (strlen($this->tmpdata) == $this->filesizes) {
-                    $infofile = pathinfo($this->curpath['path']);
-                    if (in_array($infofile['extension'], array(
-                        'txt',
-                        'log'
-                    ))) {
-                        if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
-                            $this->tmpdata = '';
-                            $this->oldpath = $this->curpath['path'];
-                            
-                            if (strlen($this->tmpdatas) > 0) {
-                                $this->tmpdata  = $this->tmpdatas;
-                                $this->tmpdatas = '';
-                            }
-                            $this->tmpdata_flag = 0;
+                    //$infofile = pathinfo($this->curpath['path']);
+                    //if (in_array($infofile['extension'], array(
+                    //    'txt',
+                    //    'log'
+                    //))) {
+                    if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
+                        $this->tmpdata = '';
+                        $this->oldpath = $this->curpath['path'];
+                        
+                        if (strlen($this->tmpdatas) > 0) {
+                            $this->tmpdata  = $this->tmpdatas;
+                            $this->tmpdatas = '';
                         }
-                    } else {
-                        if (in_array($infofile['extension'], array(
-                            'jpg',
-                            'png',
-                            'jpeg',
-                            'JPG',
-                            'JPEG',
-                            'PNG',
-                            'bmp'
-                        ))) {
-                            if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
-                                $this->tmpdata = '';
-                                $this->oldpath = $this->curpath['path'];
-                                if (strlen($this->tmpdatas) > 0) {
-                                    $this->tmpdata  = $this->tmpdatas;
-                                    $this->tmpdatas = '';
-                                    
-                                }
-                                $this->tmpdata_flag = 0;
-                            } //写入图片流
-                        }
+                        $this->tmpdata_flag = 0;
                     }
+                    /*} else {
+                    if (in_array($infofile['extension'], array(
+                    'jpg',
+                    'png',
+                    'jpeg',
+                    'JPG',
+                    'JPEG',
+                    'PNG',
+                    'bmp'
+                    ))) {
+                    if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
+                    $this->tmpdata = '';
+                    $this->oldpath = $this->curpath['path'];
+                    if (strlen($this->tmpdatas) > 0) {
+                    $this->tmpdata  = $this->tmpdatas;
+                    $this->tmpdatas = '';
+                    
+                    }
+                    $this->tmpdata_flag = 0;
+                    } //写入图片流
+                    }
+                    }*/
                 }
             }
         } else {
@@ -323,8 +327,8 @@ class FileDistributedServer
                             break;
                         case 'file':
                             if (isset($val['data']['path'])) {
-                                if (!file_exists(LISTENPATH . '/' . $val['data']['path'])) {
-                                    $this->curpath['path'] = LISTENPATH . '/' . $val['data']['path'];
+                                if (!file_exists(LISTENPATH . '/' . rawurldecode($val['data']['path']))) {
+                                    $this->curpath['path'] = LISTENPATH . '/' . rawurldecode($val['data']['path']);
                                     $data_s                = array(
                                         'type' => 'filemes',
                                         'data' => array(
@@ -337,87 +341,87 @@ class FileDistributedServer
                             break;
                         case 'asyncfileclient':
                             if (isset($val['data']['path'])) {
-                                $extend = explode(".", $val['data']['fileex']['basename']);
-                                $va     = count($extend) - 1;
-                                if (in_array($extend[$va], array(
-                                    'txt',
-                                    'log',
-                                    'jpg',
-                                    'png',
-                                    'jpeg',
-                                    'JPG',
-                                    'JPEG',
-                                    'PNG',
-                                    'bmp'
-                                ))) {
-                                    if (empty($val['data']['pre'])) {
-                                        $dataas = array(
-                                            'type' => 'asyncfile',
-                                            'data' => array(
-                                                'path' => $val['data']['fileex']['basename']
-                                            )
-                                        );
-                                    } else {
-                                        $dataas = array(
-                                            'type' => 'asyncfile',
-                                            'data' => array(
-                                                'path' => $val['data']['pre'] . '/' . $val['data']['fileex']['basename']
-                                            )
-                                        );
-                                    }
-                                    
-                                    $serv->send($fd, FileDistributedClient::getInstance()->packmes($dataas));
-                                    
+                                //$extend = explode(".", $val['data']['fileex']['basename']);
+                                //$va     = count($extend) - 1;
+                                // if (in_array($extend[$va], array(
+                                //   'txt',
+                                //    'log',
+                                //   'jpg',
+                                //    'png',
+                                //    'jpeg',
+                                //    'JPG',
+                                //    'JPEG',
+                                //    'PNG',
+                                //    'bmp'
+                                //))) {
+                                if (empty($val['data']['pre'])) {
+                                    $dataas = array(
+                                        'type' => 'asyncfile',
+                                        'data' => array(
+                                            'path' => $val['data']['fileex']
+                                        )
+                                    );
+                                } else {
+                                    $dataas = array(
+                                        'type' => 'asyncfile',
+                                        'data' => array(
+                                            'path' => rawurlencode(rawurldecode($val['data']['pre']) . '/' . rawurldecode($val['data']['fileex']))
+                                        )
+                                    );
                                 }
+                                
+                                $serv->send($fd, FileDistributedClient::getInstance()->packmes($dataas));
+                                
+                                //}
                             }
                             break;
                         case 'fileclient':
-                            $infofile = pathinfo($val['data']['path']);
-                            if ($infofile['basename']) {
-                                $extend = explode(".", $infofile['basename']);
-                                $va     = count($extend) - 1;
-                                if (in_array($extend[$va], array(
-                                    'txt',
-                                    'log',
-                                    'jpg',
-                                    'png',
-                                    'jpeg',
-                                    'JPG',
-                                    'JPEG',
-                                    'PNG',
-                                    'bmp'
-                                ))) {
-                                    if (isset($this->curpath['path']) && $val['data']['path'] == $this->curpath['path']) {
-                                    } else {
-                                        if (empty($val['data']['pre'])) {
-                                            $datas = array(
-                                                'type' => 'file',
-                                                'data' => array(
-                                                    'path' => $val['data']['fileex']['basename']
-                                                )
-                                            );
-                                        } else {
-                                            $datas = array(
-                                                'type' => 'file',
-                                                'data' => array(
-                                                    'path' => $val['data']['pre'] . '/' . $val['data']['fileex']['basename']
-                                                )
-                                            );
+                            //$infofile = pathinfo($val['data']['path']);
+                            // if ($infofile['basename']) {
+                            // $extend = explode(".", $infofile['basename']);
+                            // $va     = count($extend) - 1;
+                            // if (in_array($extend[$va], array(
+                            //     'txt',
+                            //     'log',
+                            //      'jpg',
+                            //      'png',
+                            //     'jpeg',
+                            //      'JPG',
+                            //       'JPEG',
+                            //       'PNG',
+                            //      'bmp'
+                            // ))) {
+                            if (isset($this->curpath['path']) && $val['data']['path'] == $this->curpath['path']) {
+                            } else {
+                                if (empty($val['data']['pre'])) {
+                                    $datas = array(
+                                        'type' => 'file',
+                                        'data' => array(
+                                            'path' => $val['data']['fileex']
+                                        )
+                                    );
+                                } else {
+                                    $datas = array(
+                                        'type' => 'file',
+                                        'data' => array(
+                                            'path' => rawurlencode(rawurldecode($val['data']['pre']) . '/' . rawurldecode($val['data']['fileex']))
+                                        )
+                                    );
+                                }
+                                
+                                foreach ($this->b_server_pool as $k => $v) {
+                                    if (file_exists(rawurldecode($val['data']['path']))) {
+                                        if ($this->localip != $v['fd'] && $this->curpath['path'] != $val['data']['path']) {
+                                            if ($v['client']->send(FileDistributedClient::getInstance()->packmes($datas))) {
+                                            }
                                         }
                                         
-                                        foreach ($this->b_server_pool as $k => $v) {
-                                            if (file_exists($val['data']['path'])) {
-                                                if ($this->localip != $v['fd'] && $this->curpath['path'] != $val['data']['path']) {
-                                                    if ($v['client']->send(FileDistributedClient::getInstance()->packmes($datas))) {
-                                                    }
-                                                }
-                                                
-                                            }
-                                            
-                                        }
                                     }
+                                    
                                 }
                             }
+                            // }
+                            //}
                             break;
                         default:
                             break;
