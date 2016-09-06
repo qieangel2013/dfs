@@ -113,7 +113,6 @@ class FileDistributedClient
                         swoole_event_add($process->pipe, function($pipe) use ($client, $listenpath, $process)
                         {
                             $data_l = $process->read();
-                            echo $data_l . '\r\n';
                             $extends = explode("/", $data_l);
                             $vas     = count($extends) - 1;
                             $pre_dir = substr($data_l, 0, strripos($data_l, "/") + 1);
