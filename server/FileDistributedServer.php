@@ -231,12 +231,16 @@ class FileDistributedServer
         //判断是否为二进制图片流
         if (!is_array($remote_info)) {
             if (!$this->tmpdata_flag) {
-                $tdf                   = array_shift($this->client_pool_ser_c);
+                $tdf = array_shift($this->client_pool_ser_c);
+                if (rawurldecode($tdf['data']['path'])) {
+                } else {
+                    $tdf = array_shift($this->client_pool_ser_c);
+                }
                 $this->curpath['path'] = LISTENPATH . '/' . rawurldecode($tdf['data']['path']);
                 $this->filesizes       = $tdf['data']['filesize'];
                 $this->tmpdata_flag    = 1;
             }
-            if (isset($this->curpath['path'])) {
+            if (isset($this->curpath['path']) && $this->curpath['path'] != LISTENPATH . '/') {
                 if (is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))) {
                 } else {
                     FileDistributedClient::getInstance()->mklistDir(dirname($this->curpath['path']));

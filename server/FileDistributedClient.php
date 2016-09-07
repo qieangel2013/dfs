@@ -79,15 +79,19 @@ class FileDistributedClient
             foreach ($remote_info as &$val) {
                 switch ($val['type']) {
                     case 'filemes':
-                        $strlendata = file_get_contents(LISTENPATH . '/' . rawurldecode($val['data']['path']));
-                        $datas      = array(
-                            'type' => 'filesize',
-                            'data' => array(
-                                'path' => $val['data']['path'],
-                                'filesize' => strlen($strlendata)
-                            )
-                        );
-                        $client->send($this->packmes($datas));
+                        if (file_exists(LISTENPATH . '/' . rawurldecode($val['data']['path']))) {
+                            $strlendata = file_get_contents(LISTENPATH . '/' . rawurldecode($val['data']['path']));
+                            if (strlen($strlendata) > 0 && trim($val['data']['path']) != '') {
+                                $datas = array(
+                                    'type' => 'filesize',
+                                    'data' => array(
+                                        'path' => $val['data']['path'],
+                                        'filesize' => strlen($strlendata)
+                                    )
+                                );
+                                $client->send($this->packmes($datas));
+                            }
+                        }
                         break;
                     case 'filesizemes':
                         if ($client->sendfile(LISTENPATH . '/' . rawurldecode($val['data']['path']))) {
@@ -112,7 +116,7 @@ class FileDistributedClient
                         $process->start();
                         swoole_event_add($process->pipe, function($pipe) use ($client, $listenpath, $process)
                         {
-                            $data_l = $process->read();
+                            $data_l  = $process->read();
                             $extends = explode("/", $data_l);
                             $vas     = count($extends) - 1;
                             $pre_dir = substr($data_l, 0, strripos($data_l, "/") + 1);
