@@ -99,7 +99,7 @@ class FileDistributedServer
             'fd' => $this->localip,
             'client' => $localclient
         );
-        $listenpath                                   = LISTENPATH;
+        $listenpath                                   = $listenpathx = LISTENPATH;
         $this->filefd                                 = inotify_init();
         $wd                                           = inotify_add_watch($this->filefd, $listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE); //IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
         $this->wd[$wd]                                = array(
@@ -117,7 +117,6 @@ class FileDistributedServer
                 );
             }
         }
-        
         swoole_event_add($this->filefd, function($fd) use ($localclient, $listenpath)
         {
             $events = inotify_read($fd);
@@ -125,17 +124,34 @@ class FileDistributedServer
                 foreach ($events as $kk => $vv) {
                     if (isset($vv['name']) && $vv['mask'] != 256) {
                         if ($vv['mask'] == 1073742080) {
-                            $listenpath .= '/' . $vv['name'];
-                            if (is_dir($listenpath) && is_readable($listenpath)) {
+                            if (in_array($vv['wd'], array_keys($this->wd))) {
+                                $listenpathx = substr($this->wd[$vv['wd']]['path'], 0, strripos($this->wd[$vv['wd']]['path'], "/") + 1);
+                                $listenpathx .= '/' . $vv['name'];
+                                if (is_dir($listenpathx) && is_readable($listenpathx)) {
+                                } else {
+                                    FileDistributedClient::getInstance()->mklistDir($listenpathx);
+                                }
+                                $wd            = inotify_add_watch($fd, $listenpathx, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
+                                $this->wd[$wd] = array(
+                                    'wd' => $wd,
+                                    'path' => $listenpathx,
+                                    'pre' => $vv['name']
+                                );
                             } else {
-                                FileDistributedClient::getInstance()->mklistDir($listenpath);
+                                $listenpath .= '/' . $vv['name'];
+                                if (is_dir($listenpath) && is_readable($listenpath)) {
+                                } else {
+                                    FileDistributedClient::getInstance()->mklistDir($listenpath);
+                                }
+                                $wd            = inotify_add_watch($fd, $listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
+                                $this->wd[$wd] = array(
+                                    'wd' => $wd,
+                                    'path' => $listenpath,
+                                    'pre' => $vv['name']
+                                );
                             }
-                            $wd            = inotify_add_watch($fd, $listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
-                            $this->wd[$wd] = array(
-                                'wd' => $wd,
-                                'path' => $listenpath,
-                                'pre' => $vv['name']
-                            );
+                            
+                            
                         } else {
                             $path_listen = $this->wd[$vv['wd']]['path'] . '/' . $vv['name'];
                             //$infofile    = pathinfo($path_listen);
