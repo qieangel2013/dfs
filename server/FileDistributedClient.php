@@ -145,7 +145,6 @@ class FileDistributedClient
                                 
                                 
                                 $client->send($this->packmes($data));
-                                sleep(1);
                             });
                             break;
                         case 'asyncfile':
