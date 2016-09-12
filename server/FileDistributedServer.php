@@ -41,7 +41,7 @@ class FileDistributedServer
         if (ServerLog) {
             $server->set(array(
                 'worker_num' => 1,
-                //'task_worker_num'         => 4,
+                //'task_worker_num'         => 8,
                 'dispatch_mode' => 4, //1: 轮循, 3: 争抢
                 'daemonize' => true,
                 'log_file' => ServerLog
@@ -49,7 +49,7 @@ class FileDistributedServer
         } else {
             $server->set(array(
                 'worker_num' => 1,
-                //'task_worker_num'         => 4,
+                //'task_worker_num'         => 8,
                 'dispatch_mode' => 4, //1: 轮循, 3: 争抢
                 'daemonize' => true
             ));
@@ -99,7 +99,7 @@ class FileDistributedServer
             'fd' => $this->localip,
             'client' => $localclient
         );
-        $listenpath                                   = $listenpathx = LISTENPATH;
+        $listenpath                                   = $listenpathex = $listenpathx = LISTENPATH;
         $this->filefd                                 = inotify_init();
         $wd                                           = inotify_add_watch($this->filefd, $listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE); //IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
         $this->wd[$wd]                                = array(
@@ -117,53 +117,48 @@ class FileDistributedServer
                 );
             }
         }
-        swoole_event_add($this->filefd, function($fd) use ($localclient, $listenpath)
+        swoole_event_add($this->filefd, function($fd) use ($localclient, $listenpath, $listenpathex)
         {
             $events = inotify_read($fd);
+            
             if ($events) {
                 foreach ($events as $kk => $vv) {
                     if (isset($vv['name']) && $vv['mask'] != 256) {
                         if ($vv['mask'] == 1073742080) {
                             if (in_array($vv['wd'], array_keys($this->wd))) {
-                                $listenpathx = substr($this->wd[$vv['wd']]['path'], 0, strripos($this->wd[$vv['wd']]['path'], "/") + 1);
+                                $listenpathx = substr($this->wd[$vv['wd']]['path'], 0, strripos($this->wd[$vv['wd']]['path'] . '/', "/") + 1);
                                 $listenpathx .= '/' . $vv['name'];
-                                if (is_dir($listenpathx) && is_readable($listenpathx)) {
-                                } else {
-                                    FileDistributedClient::getInstance()->mklistDir($listenpathx);
-                                }
+                                
                                 $wd            = inotify_add_watch($fd, $listenpathx, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
                                 $this->wd[$wd] = array(
                                     'wd' => $wd,
                                     'path' => $listenpathx,
-                                    'pre' => $vv['name']
+                                    'pre' => substr($listenpathx, strlen($listenpathex), strlen($listenpathx))
                                 );
                             } else {
                                 $listenpath .= '/' . $vv['name'];
-                                if (is_dir($listenpath) && is_readable($listenpath)) {
-                                } else {
-                                    FileDistributedClient::getInstance()->mklistDir($listenpath);
-                                }
+                                
                                 $wd            = inotify_add_watch($fd, $listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
                                 $this->wd[$wd] = array(
                                     'wd' => $wd,
                                     'path' => $listenpath,
-                                    'pre' => $vv['name']
+                                    'pre' => substr($listenpath, strlen($listenpathex), strlen($listenpath))
                                 );
                             }
                             
                             
                         } else {
                             $path_listen = $this->wd[$vv['wd']]['path'] . '/' . $vv['name'];
-                            //$infofile    = pathinfo($path_listen);
-                            $extends     = explode("/", $path_listen);
-                            $vas         = count($extends) - 1;
+                            
+                            $extends = explode("/", $path_listen);
+                            $vas     = count($extends) - 1;
                             if (empty($this->wd[$vv['wd']]['pre'])) {
                                 $data = array(
                                     'type' => 'fileclient',
                                     'data' => array(
-                                        //'path' => iconv('GB2312', 'UTF-8', $path_listen),
-                                        'path' => rawurlencode($path_listen),
-                                        'fileex' => rawurlencode($extends[$vas]),
+                                        
+                                        'path' => rawurlencode(str_replace("_", "@", $path_listen)),
+                                        'fileex' => rawurlencode(str_replace("_", "@", $extends[$vas])),
                                         'pre' => ''
                                     )
                                 );
@@ -171,10 +166,10 @@ class FileDistributedServer
                                 $data = array(
                                     'type' => 'fileclient',
                                     'data' => array(
-                                        //'path' => iconv('GB2312', 'UTF-8', $path_listen),
-                                        'path' => rawurlencode($path_listen),
-                                        'fileex' => rawurlencode($extends[$vas]),
-                                        'pre' => rawurlencode($this->wd[$vv['wd']]['pre'])
+                                        
+                                        'path' => rawurlencode(str_replace("_", "@", $path_listen)),
+                                        'fileex' => rawurlencode(str_replace("_", "@", $extends[$vas])),
+                                        'pre' => rawurlencode(str_replace("_", "@", $this->wd[$vv['wd']]['pre']))
                                     )
                                 );
                             }
@@ -190,7 +185,7 @@ class FileDistributedServer
     }
     public function onWorkerStart($serv, $worker_id)
     {
-        //swoole_timer_tick(1000,array(&$this , 'onTimer'));
+        
         $localinfo     = swoole_get_local_ip();
         $this->localip = current($localinfo);
         $serverlist    = FileDistributedClient::getInstance()->getserlist();
@@ -210,6 +205,8 @@ class FileDistributedServer
             }
         }
         FileDistributedClient::getInstance()->appendserlist($this->localip, ip2long($this->localip));
+        
+        
     }
     
     public function onConnect($serv, $fd)
@@ -231,33 +228,26 @@ class FileDistributedServer
         //判断是否为二进制图片流
         if (!is_array($remote_info)) {
             if (!$this->tmpdata_flag) {
-                $tdf = array_shift($this->client_pool_ser_c);
-                if (rawurldecode($tdf['data']['path'])) {
-                } else {
-                    $tdf = array_shift($this->client_pool_ser_c);
-                }
-                $this->curpath['path'] = LISTENPATH . '/' . rawurldecode($tdf['data']['path']);
+                $tdf                   = array_shift($this->client_pool_ser_c);
+                $this->curpath['path'] = LISTENPATH . str_replace("@", "_", rawurldecode($tdf['data']['path']));
                 $this->filesizes       = $tdf['data']['filesize'];
                 $this->tmpdata_flag    = 1;
             }
-            if (isset($this->curpath['path']) && $this->curpath['path'] != LISTENPATH . '/') {
+            if (isset($this->curpath['path']) && $this->curpath['path']!=LISTENPATH) {
                 if (is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))) {
                 } else {
                     FileDistributedClient::getInstance()->mklistDir(dirname($this->curpath['path']));
                 }
                 if ($this->oldpath != $this->curpath['path']) {
                     $this->tmpdata .= $remote_info;
+                    
                     if (strlen($this->tmpdata) > $this->filesizes) {
                         $this->tmpdatas = substr($this->tmpdata, $this->filesizes, strlen($this->tmpdata));
                         $this->tmpdata  = substr($this->tmpdata, 0, $this->filesizes);
                     }
                 }
                 if (strlen($this->tmpdata) == $this->filesizes) {
-                    //$infofile = pathinfo($this->curpath['path']);
-                    //if (in_array($infofile['extension'], array(
-                    //    'txt',
-                    //    'log'
-                    //))) {
+                    
                     if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
                         $this->tmpdata = '';
                         $this->oldpath = $this->curpath['path'];
@@ -268,33 +258,12 @@ class FileDistributedServer
                         }
                         $this->tmpdata_flag = 0;
                     }
-                    /*} else {
-                    if (in_array($infofile['extension'], array(
-                    'jpg',
-                    'png',
-                    'jpeg',
-                    'JPG',
-                    'JPEG',
-                    'PNG',
-                    'bmp'
-                    ))) {
-                    if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
-                    $this->tmpdata = '';
-                    $this->oldpath = $this->curpath['path'];
-                    if (strlen($this->tmpdatas) > 0) {
-                    $this->tmpdata  = $this->tmpdatas;
-                    $this->tmpdatas = '';
                     
-                    }
-                    $this->tmpdata_flag = 0;
-                    } //写入图片流
-                    }
-                    }*/
                 }
             }
         } else {
             foreach ($remote_info as &$val) {
-                if ($val['type'] == 'system' && $val['data']['code'] == 10001) {
+                if (isset($val['type']) && $val['type'] == 'system' && $val['data']['code'] == 10001) {
                     if ($this->client_a != $val['data']['fd']) {
                         if (!$this->table->get(ip2long($val['data']['fd']))) {
                             $client                                           = FileDistributedClient::getInstance()->addServerClient($val['data']['fd']);
@@ -330,130 +299,123 @@ class FileDistributedServer
                             array_push($this->client_pool_ser, $this->connectioninfo['remote_ip']);
                         }
                     }
+                    echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
                 } else {
-                    switch ($val['type']) {
-                        case 'filesize':
-                            if (isset($val['data']['path'])) {
-                                $data_s          = array(
-                                    'type' => 'filesizemes',
-                                    'data' => array(
-                                        'path' => $val['data']['path']
-                                    )
-                                );
-                                $this->filesizes = $val['data']['filesize'];
-                                array_push($this->client_pool_ser_c, $val);
-                                $serv->send($fd, FileDistributedClient::getInstance()->packmes($data_s));
-                            }
-                            break;
-                        case 'file':
-                            if (isset($val['data']['path'])) {
-                                if (!file_exists(LISTENPATH . '/' . rawurldecode($val['data']['path']))) {
-                                    $this->curpath['path'] = LISTENPATH . '/' . rawurldecode($val['data']['path']);
-                                    $data_s                = array(
-                                        'type' => 'filemes',
+                    if (isset($val['type'])) {
+                        switch ($val['type']) {
+                            case 'filesize':
+                                if (isset($val['data']['path'])) {
+                                    $data_s = array(
+                                        'type' => 'filesizemes',
                                         'data' => array(
                                             'path' => $val['data']['path']
                                         )
                                     );
+                                    array_push($this->client_pool_ser_c, $val);
                                     $serv->send($fd, FileDistributedClient::getInstance()->packmes($data_s));
                                 }
-                            }
-                            break;
-                        case 'asyncfileclient':
-                            if (isset($val['data']['path'])) {
-                                //$extend = explode(".", $val['data']['fileex']['basename']);
-                                //$va     = count($extend) - 1;
-                                // if (in_array($extend[$va], array(
-                                //   'txt',
-                                //    'log',
-                                //   'jpg',
-                                //    'png',
-                                //    'jpeg',
-                                //    'JPG',
-                                //    'JPEG',
-                                //    'PNG',
-                                //    'bmp'
-                                //))) {
-                                if (empty($val['data']['pre'])) {
-                                    $dataas = array(
-                                        'type' => 'asyncfile',
-                                        'data' => array(
-                                            'path' => $val['data']['fileex']
-                                        )
-                                    );
-                                } else {
-                                    $dataas = array(
-                                        'type' => 'asyncfile',
-                                        'data' => array(
-                                            'path' => rawurlencode(rawurldecode($val['data']['pre']) . '/' . rawurldecode($val['data']['fileex']))
-                                        )
-                                    );
+                                break;
+                            case 'file':
+                                if (isset($val['data']['path'])) {
+                                    if (!file_exists(LISTENPATH . str_replace("@", "_", rawurldecode($val['data']['path'])))) {
+                                        $data_s = array(
+                                            'type' => 'filemes',
+                                            'data' => array(
+                                                'path' => $val['data']['path']
+                                            )
+                                        );
+                                        $serv->send($fd, FileDistributedClient::getInstance()->packmes($data_s));
+                                    }
                                 }
-                                
-                                $serv->send($fd, FileDistributedClient::getInstance()->packmes($dataas));
-                                
-                                //}
-                            }
-                            break;
-                        case 'fileclient':
-                            //$infofile = pathinfo($val['data']['path']);
-                            // if ($infofile['basename']) {
-                            // $extend = explode(".", $infofile['basename']);
-                            // $va     = count($extend) - 1;
-                            // if (in_array($extend[$va], array(
-                            //     'txt',
-                            //     'log',
-                            //      'jpg',
-                            //      'png',
-                            //     'jpeg',
-                            //      'JPG',
-                            //       'JPEG',
-                            //       'PNG',
-                            //      'bmp'
-                            // ))) {
-                            if (isset($this->curpath['path']) && $val['data']['path'] == $this->curpath['path']) {
-                            } else {
-                                if (empty($val['data']['pre'])) {
-                                    $datas = array(
-                                        'type' => 'file',
-                                        'data' => array(
-                                            'path' => $val['data']['fileex']
-                                        )
-                                    );
-                                } else {
-                                    $datas = array(
-                                        'type' => 'file',
-                                        'data' => array(
-                                            'path' => rawurlencode(rawurldecode($val['data']['pre']) . '/' . rawurldecode($val['data']['fileex']))
-                                        )
-                                    );
-                                }
-                                
-                                foreach ($this->b_server_pool as $k => $v) {
-                                    if (file_exists(rawurldecode($val['data']['path']))) {
-                                        if ($this->localip != $v['fd'] && $this->curpath['path'] != $val['data']['path']) {
-                                            if ($v['client']->send(FileDistributedClient::getInstance()->packmes($datas))) {
-                                            }
-                                        }
-                                        
+                                break;
+                            case 'asyncfileclient':
+                                if (isset($val['data']['path'])) {
+                                    if (empty($val['data']['pre'])) {
+                                        $dataas = array(
+                                            'type' => 'asyncfile',
+                                            'data' => array(
+                                                'path' => rawurlencode('/') . $val['data']['fileex']
+                                            )
+                                        );
+                                    } else {
+                                        $dataas = array(
+                                            'type' => 'asyncfile',
+                                            'data' => array(
+                                                'path' => $val['data']['pre']
+                                            )
+                                        );
                                     }
                                     
+                                    $serv->send($fd, FileDistributedClient::getInstance()->packmes($dataas));
+                                }
+                                break;
+                            case 'fileclient':
+                                if (empty($val['data']['pre'])) {
+                                    $datas = array(
+                                        'type' => 'file',
+                                        'data' => array(
+                                            'path' => rawurlencode('/') . $val['data']['fileex']
+                                        )
+                                    );
+                                } else {
+                                    $datas = array(
+                                        'type' => 'file',
+                                        'data' => array(
+                                            'path' => rawurlencode(rawurldecode($val['data']['pre']) . '/' . rawurldecode($val['data']['fileex']))
+                                        )
+                                    );
+                                }
+                                foreach ($this->b_server_pool as $k => $v) {
+                                    $v['client']->send(FileDistributedClient::getInstance()->packmes($datas));
+                                }
+                                break;
+                            default:
+                                break;
+                        }
+                        echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
+                    } else {
+                        if (!$this->tmpdata_flag) {
+                            $tdf                   = array_shift($this->client_pool_ser_c);
+                            $this->curpath['path'] = LISTENPATH . str_replace("@", "_", rawurldecode($tdf['data']['path']));
+                            $this->filesizes       = $tdf['data']['filesize'];
+                            $this->tmpdata_flag    = 1;
+                        }
+                        if (isset($this->curpath['path']) && $this->curpath['path']!=LISTENPATH) {
+                            if (is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))) {
+                            } else {
+                                FileDistributedClient::getInstance()->mklistDir(dirname($this->curpath['path']));
+                            }
+                            if ($this->oldpath != $this->curpath['path']) {
+                                $this->tmpdata .= $val;
+                                if (strlen($this->tmpdata) > $this->filesizes) {
+                                    $this->tmpdatas = substr($this->tmpdata, $this->filesizes, strlen($this->tmpdata));
+                                    $this->tmpdata  = substr($this->tmpdata, 0, $this->filesizes);
                                 }
                             }
-                            // }
-                            //}
-                            break;
-                        default:
-                            break;
+                            if (strlen($this->tmpdata) == $this->filesizes) {
+                                
+                                if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
+                                    $this->tmpdata = '';
+                                    $this->oldpath = $this->curpath['path'];
+                                    
+                                    if (strlen($this->tmpdatas) > 0) {
+                                        $this->tmpdata  = $this->tmpdatas;
+                                        $this->tmpdatas = '';
+                                    }
+                                    $this->tmpdata_flag = 0;
+                                }
+                                
+                            }
+                        }
                     }
+                    
                 }
             }
             
-            //print_r($remote_info);
-            echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
         }
         
     }
+    
     /**
      * 服务器断开连接
      * @param $cli
@@ -493,14 +455,7 @@ class FileDistributedServer
     
     public function onTask($serv, $task_id, $from_id, $data)
     {
-        /* ob_start();
-        $this->application->execute(array('swoole_taskclient','query'),$data);
-        $result = ob_get_contents();
-        ob_end_clean();*/
-        $result = json_encode(array(
-            'mes' => 12
-        ));
-        return $result;
+        
     }
     public function onFinish($serv, $task_id, $data)
     {
