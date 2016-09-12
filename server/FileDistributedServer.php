@@ -192,7 +192,7 @@ class FileDistributedServer
         $result_fd     = json_decode($serverlist, true);
         if (!empty($result_fd)) {
             foreach ($result_fd as $id => $fd) {
-                if ($fd != $localinfo['eth0']) {
+                if ($fd != $this->localip) {
                     $client = FileDistributedClient::getInstance()->addServerClient($fd);
                     $this->table->set(ip2long($fd), array(
                         'fileserverfd' => ip2long($fd)
