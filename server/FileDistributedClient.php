@@ -120,13 +120,11 @@ class FileDistributedClient
                                 $data_l  = $process->read();
                                 $extends = explode("/", $data_l);
                                 $vas     = count($extends) - 1;
-                                //$pre_dir = substr($data_l, 0, strripos($data_l.'/', "/") + 1);
                                 $pre_dir = substr($data_l, strlen($listenpath), strlen($data_l));
                                 if (empty($pre_dir)) {
                                     $data = array(
                                         'type' => 'asyncfileclient',
                                         'data' => array(
-                                            //'path' => iconv('GB2312', 'UTF-8', $data_l),
                                             'path' => rawurlencode(str_replace("_", "@", $data_l)),
                                             'fileex' => rawurlencode(str_replace("_", "@", $extends[$vas])),
                                             'pre' => ''
@@ -145,6 +143,8 @@ class FileDistributedClient
                                 
                                 
                                 $client->send($this->packmes($data));
+                                sleep(1);
+                                //usleep(300000);
                             });
                             break;
                         case 'asyncfile':
@@ -259,7 +259,7 @@ class FileDistributedClient
         return $dirInfo;
     }
     //解包装数据
-    public function unpackmes($data, $format = '\r\n\r\n', $preformat = '###')
+    public function unpackmes($data, $format = '\r\n\r\n', $preformat = '######')
     {
         $pos        = strpos($data, $format);
         $resultdata = array();
@@ -291,7 +291,7 @@ class FileDistributedClient
         }
     }
     //包装数据
-    public function packmes($data, $format = '\r\n\r\n', $preformat = '###')
+    public function packmes($data, $format = '\r\n\r\n', $preformat = '######')
     {
         return $preformat . json_encode($data, true) . $format;
     }

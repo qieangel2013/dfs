@@ -104,7 +104,8 @@ class FileDistributedServer
         $wd                                           = inotify_add_watch($this->filefd, $listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE); //IN_MODIFY、IN_ALL_EVENTS、IN_CLOSE_WRITE
         $this->wd[$wd]                                = array(
             'wd' => $wd,
-            'path' => $listenpath
+            'path' => $listenpath,
+            'pre' => ''
         );
         $lisrdir                                      = FileDistributedClient::getInstance()->getlistDir($listenpath);
         if ($lisrdir) {
@@ -113,14 +114,13 @@ class FileDistributedServer
                 $this->wd[$wd] = array(
                     'wd' => $wd,
                     'path' => $v,
-                    'pre' => ''
+                    'pre' => substr($v, strlen($listenpathex), strlen($v))
                 );
             }
         }
         swoole_event_add($this->filefd, function($fd) use ($localclient, $listenpath, $listenpathex)
         {
             $events = inotify_read($fd);
-            
             if ($events) {
                 foreach ($events as $kk => $vv) {
                     if (isset($vv['name']) && $vv['mask'] != 256) {
@@ -129,7 +129,7 @@ class FileDistributedServer
                                 $listenpathx = substr($this->wd[$vv['wd']]['path'], 0, strripos($this->wd[$vv['wd']]['path'] . '/', "/") + 1);
                                 $listenpathx .= '/' . $vv['name'];
                                 
-                                $wd            = inotify_add_watch($fd, $listenpathx, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
+                                $wd            = inotify_add_watch($this->filefd, $listenpathx, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
                                 $this->wd[$wd] = array(
                                     'wd' => $wd,
                                     'path' => $listenpathx,
@@ -138,7 +138,7 @@ class FileDistributedServer
                             } else {
                                 $listenpath .= '/' . $vv['name'];
                                 
-                                $wd            = inotify_add_watch($fd, $listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
+                                $wd            = inotify_add_watch($this->filefd, $listenpath, IN_CREATE | IN_MOVED_TO | IN_CLOSE_WRITE);
                                 $this->wd[$wd] = array(
                                     'wd' => $wd,
                                     'path' => $listenpath,
@@ -174,6 +174,8 @@ class FileDistributedServer
                                 );
                             }
                             $localclient->send(FileDistributedClient::getInstance()->packmes($data));
+                            //sleep(1);
+                            usleep(300000);
                         }
                         
                     }
@@ -299,7 +301,7 @@ class FileDistributedServer
                             array_push($this->client_pool_ser, $this->connectioninfo['remote_ip']);
                         }
                     }
-                    echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
+                    echo date('[ c ]') . str_replace("\n", "", var_export($val, true));
                 } else {
                     if (isset($val['type'])) {
                         switch ($val['type']) {
@@ -372,7 +374,7 @@ class FileDistributedServer
                             default:
                                 break;
                         }
-                        echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
+                        echo date('[ c ]') . str_replace("\n", "", var_export($val, true));
                     } else {
                         if (!$this->tmpdata_flag) {
                             $tdf                   = array_shift($this->client_pool_ser_c);
