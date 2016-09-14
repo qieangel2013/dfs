@@ -33,7 +33,14 @@ class FileDistributedClient
     
     public function addServerClient($address)
     {
-        $client = new swoole_client(SWOOLE_TCP, SWOOLE_SOCK_ASYNC);
+        $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
+        $client->set(array(
+            'open_length_check'     => 1,
+            'package_length_type'   => 'N',
+            'package_length_offset' => 0,       //第N个字节是包长度的值
+            'package_body_offset'   => 4,       //第几个字节开始计算长度
+            'package_max_length'    => 2000000  //协议最大长度
+        ));
         $client->on('Connect', array(
             &$this,
             'onConnect'
@@ -76,17 +83,15 @@ class FileDistributedClient
     {
         $remote_info = $this->unpackmes($data);
         if (is_array($remote_info)) {
-            foreach ($remote_info as &$val) {
-                if (isset($val['type'])) {
-                    switch ($val['type']) {
+                    switch ($remote_info['type']) {
                         case 'filemes':
-                            if (file_exists(LISTENPATH . str_replace("@", "_", rawurldecode($val['data']['path'])))) {
-                                $strlendata = file_get_contents(LISTENPATH . str_replace("@", "_", rawurldecode($val['data']['path'])));
+                            if (file_exists(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])))) {
+                                $strlendata = file_get_contents(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])));
                                 if (strlen($strlendata) > 0) {
                                     $datas = array(
                                         'type' => 'filesize',
                                         'data' => array(
-                                            'path' => $val['data']['path'],
+                                            'path' => $remote_info['data']['path'],
                                             'filesize' => strlen($strlendata)
                                         )
                                     );
@@ -95,8 +100,24 @@ class FileDistributedClient
                             }
                             break;
                         case 'filesizemes':
-                            if ($client->sendfile(LISTENPATH . str_replace("@", "_", rawurldecode($val['data']['path'])))) {
+                            $client->send(pack('N',$remote_info['data']['filesize']));
+                            if ($client->sendfile(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])))) {
                             }
+                            /*$filesizedata=$remote_info['data']['filesize'];
+                            $filepath=str_replace("@", "_", rawurldecode($remote_info['data']['path']));
+                            swoole_async_read(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])),function($filename,$content) use($client,$filesizedata,$filepath){
+                                if (empty($content)){
+                                    $data_file = array('type' =>'filepool','data'=>array('id'=>md5($filepath),'pathpre' => $filepath,'filesize'=>$filesizedata,'curszize'=>strlen($content),'content'=>$content,'succ'=>0));
+                                    $client->send($this->packmes($data_file));
+                                    return false;
+                                }else{
+                                     $data_file = array('type' =>'filepool','data'=>array('id'=>md5($filepath),'pathpre' => $filepath,'filesize'=>$filesizedata,'curszize'=>strlen($content),'content'=>$content,'succ'=>1));
+                                     $client->send(pack('N', strlen($content)).$content);
+                                    //$client->send($this->packmes($data_file));
+                                    return true;
+                                }
+                                
+                            },8192);*/
                             break;
                         case 'system': //启动一个进程来处理已存在的图片
                             $listenpath       = LISTENPATH;
@@ -143,29 +164,22 @@ class FileDistributedClient
                                 
                                 
                                 $client->send($this->packmes($data));
-                                sleep(1);
-                                //usleep(300000);
                             });
                             break;
                         case 'asyncfile':
                             $data_sa = array(
                                 'type' => 'file',
                                 'data' => array(
-                                    'path' => $val['data']['path']
+                                    'path' => $remote_info['data']['path']
                                 )
                             );
                             
                             $client->send($this->packmes($data_sa));
                             break;
                         default:
-                            break;
+                            break;     
                             
-                            
-                    }
-                }
-                
-            }
-            
+                    }   
             
         } else {
             echo date('[ c ]') . '参数不对 \r\n';
@@ -204,6 +218,7 @@ class FileDistributedClient
      */
     public function onError($client)
     {
+        //echo socket_strerror($client->errCode);
         $this->removeuser($this->cur_address);
         $this->del_server[ip2long($this->cur_address)] = $this->cur_address;
         $this->table->del(ip2long($this->cur_address));
@@ -261,7 +276,7 @@ class FileDistributedClient
     //解包装数据
     public function unpackmes($data, $format = '\r\n\r\n', $preformat = '######')
     {
-        $pos        = strpos($data, $format);
+        /*$pos        = strpos($data, $format);
         $resultdata = array();
         if ($pos !== false) {
             $tmpdata = explode($format, $data);
@@ -288,12 +303,22 @@ class FileDistributedClient
             return $resultdata;
         } else {
             return $data;
+        }*/
+
+        $resultdata=substr($data, 4);
+        $result=json_decode($resultdata, true);
+        if(!is_array($result)){
+            return $resultdata;
+        }else{
+             return $result;
         }
+       
     }
     //包装数据
     public function packmes($data, $format = '\r\n\r\n', $preformat = '######')
     {
-        return $preformat . json_encode($data, true) . $format;
+        //return $preformat . json_encode($data, true) . $format;
+        return pack('N', strlen(json_encode($data, true))).json_encode($data, true);
     }
     //获取目录文件
     public function getlistDirFile($dir)

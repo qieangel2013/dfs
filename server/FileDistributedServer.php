@@ -44,6 +44,11 @@ class FileDistributedServer
                 //'task_worker_num'         => 8,
                 'dispatch_mode' => 4, //1: 轮循, 3: 争抢
                 'daemonize' => true,
+                'open_length_check'     => true,
+                'package_length_type'   => 'N',
+				'package_length_offset' => 0,       //第N个字节是包长度的值
+				'package_body_offset'   => 4,       //第几个字节开始计算长度
+				'package_max_length'    => 2000000,  //协议最大长度
                 'log_file' => ServerLog
             ));
         } else {
@@ -51,6 +56,11 @@ class FileDistributedServer
                 'worker_num' => 1,
                 //'task_worker_num'         => 8,
                 'dispatch_mode' => 4, //1: 轮循, 3: 争抢
+                'open_length_check'     => true,
+                'package_length_type'   => 'N',
+				'package_length_offset' => 0,       //第N个字节是包长度的值
+				'package_body_offset'   => 4,       //第几个字节开始计算长度
+				'package_max_length'    => 2000000,  //协议最大长度
                 'daemonize' => true
             ));
         }
@@ -174,8 +184,6 @@ class FileDistributedServer
                                 );
                             }
                             $localclient->send(FileDistributedClient::getInstance()->packmes($data));
-                            //sleep(1);
-                            usleep(300000);
                         }
                         
                     }
@@ -264,24 +272,23 @@ class FileDistributedServer
                 }
             }
         } else {
-            foreach ($remote_info as &$val) {
-                if (isset($val['type']) && $val['type'] == 'system' && $val['data']['code'] == 10001) {
-                    if ($this->client_a != $val['data']['fd']) {
-                        if (!$this->table->get(ip2long($val['data']['fd']))) {
-                            $client                                           = FileDistributedClient::getInstance()->addServerClient($val['data']['fd']);
-                            $this->b_server_pool[ip2long($val['data']['fd'])] = array(
-                                'fd' => $val['data']['fd'],
+                if ($remote_info['type'] == 'system' && $remote_info['data']['code'] == 10001) {
+                    if ($this->client_a != $remote_info['data']['fd']) {
+                        if (!$this->table->get(ip2long($remote_info['data']['fd']))) {
+                            $client                                           = FileDistributedClient::getInstance()->addServerClient($remote_info['data']['fd']);
+                            $this->b_server_pool[ip2long($remote_info['data']['fd'])] = array(
+                                'fd' => $remote_info['data']['fd'],
                                 'client' => $client
                             );
-                            $this->client_a                                   = $val['data']['fd'];
+                            $this->client_a                                   = $remote_info['data']['fd'];
                         } else {
                             if (FileDistributedClient::getInstance()->getkey()) {
-                                $client                                           = FileDistributedClient::getInstance()->addServerClient($val['data']['fd']);
-                                $this->b_server_pool[ip2long($val['data']['fd'])] = array(
-                                    'fd' => $val['data']['fd'],
+                                $client                                           = FileDistributedClient::getInstance()->addServerClient($remote_info['data']['fd']);
+                                $this->b_server_pool[ip2long($remote_info['data']['fd'])] = array(
+                                    'fd' => $remote_info['data']['fd'],
                                     'client' => $client
                                 );
-                                $this->client_a                                   = $val['data']['fd'];
+                                $this->client_a                                   = $remote_info['data']['fd'];
                                 if ($this->localip == FileDistributedClient::getInstance()->getkey()) {
                                     FileDistributedClient::getInstance()->delkey();
                                 }
@@ -301,29 +308,29 @@ class FileDistributedServer
                             array_push($this->client_pool_ser, $this->connectioninfo['remote_ip']);
                         }
                     }
-                    echo date('[ c ]') . str_replace("\n", "", var_export($val, true));
+                    echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
                 } else {
-                    if (isset($val['type'])) {
-                        switch ($val['type']) {
+                        switch ($remote_info['type']) {
                             case 'filesize':
-                                if (isset($val['data']['path'])) {
+                                if (isset($remote_info['data']['path'])) {
                                     $data_s = array(
                                         'type' => 'filesizemes',
                                         'data' => array(
-                                            'path' => $val['data']['path']
+                                            'path' => $remote_info['data']['path'],
+                                            'filesize'=>$remote_info['data']['filesize']
                                         )
                                     );
-                                    array_push($this->client_pool_ser_c, $val);
+                                    array_push($this->client_pool_ser_c,$remote_info);
                                     $serv->send($fd, FileDistributedClient::getInstance()->packmes($data_s));
                                 }
                                 break;
                             case 'file':
-                                if (isset($val['data']['path'])) {
-                                    if (!file_exists(LISTENPATH . str_replace("@", "_", rawurldecode($val['data']['path'])))) {
+                                if (isset($remote_info['data']['path'])) {
+                                    if (!file_exists(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])))) {
                                         $data_s = array(
                                             'type' => 'filemes',
                                             'data' => array(
-                                                'path' => $val['data']['path']
+                                                'path' => $remote_info['data']['path']
                                             )
                                         );
                                         $serv->send($fd, FileDistributedClient::getInstance()->packmes($data_s));
@@ -331,19 +338,19 @@ class FileDistributedServer
                                 }
                                 break;
                             case 'asyncfileclient':
-                                if (isset($val['data']['path'])) {
-                                    if (empty($val['data']['pre'])) {
+                                if (isset($remote_info['data']['path'])) {
+                                    if (empty($remote_info['data']['pre'])) {
                                         $dataas = array(
                                             'type' => 'asyncfile',
                                             'data' => array(
-                                                'path' => rawurlencode('/') . $val['data']['fileex']
+                                                'path' => rawurlencode('/') . $remote_info['data']['fileex']
                                             )
                                         );
                                     } else {
                                         $dataas = array(
                                             'type' => 'asyncfile',
                                             'data' => array(
-                                                'path' => $val['data']['pre']
+                                                'path' => $remote_info['data']['pre']
                                             )
                                         );
                                     }
@@ -352,68 +359,31 @@ class FileDistributedServer
                                 }
                                 break;
                             case 'fileclient':
-                                if (empty($val['data']['pre'])) {
+                                if (empty($remote_info['data']['pre'])) {
                                     $datas = array(
                                         'type' => 'file',
                                         'data' => array(
-                                            'path' => rawurlencode('/') . $val['data']['fileex']
+                                            'path' => rawurlencode('/') . $remote_info['data']['fileex']
                                         )
                                     );
                                 } else {
                                     $datas = array(
                                         'type' => 'file',
                                         'data' => array(
-                                            'path' => rawurlencode(rawurldecode($val['data']['pre']) . '/' . rawurldecode($val['data']['fileex']))
+                                            'path' => rawurlencode(rawurldecode($remote_info['data']['pre']) . '/' . rawurldecode($remote_info['data']['fileex']))
                                         )
                                     );
                                 }
                                 foreach ($this->b_server_pool as $k => $v) {
-                                    $v['client']->send(FileDistributedClient::getInstance()->packmes($datas));
+                                	if($v['fd']!=$this->localip) $v['client']->send(FileDistributedClient::getInstance()->packmes($datas));
                                 }
                                 break;
-                            default:
+                            default:                            	
                                 break;
                         }
-                        echo date('[ c ]') . str_replace("\n", "", var_export($val, true));
-                    } else {
-                        if (!$this->tmpdata_flag) {
-                            $tdf                   = array_shift($this->client_pool_ser_c);
-                            $this->curpath['path'] = LISTENPATH . str_replace("@", "_", rawurldecode($tdf['data']['path']));
-                            $this->filesizes       = $tdf['data']['filesize'];
-                            $this->tmpdata_flag    = 1;
-                        }
-                        if (isset($this->curpath['path']) && $this->curpath['path']!=LISTENPATH) {
-                            if (is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))) {
-                            } else {
-                                FileDistributedClient::getInstance()->mklistDir(dirname($this->curpath['path']));
-                            }
-                            if ($this->oldpath != $this->curpath['path']) {
-                                $this->tmpdata .= $val;
-                                if (strlen($this->tmpdata) > $this->filesizes) {
-                                    $this->tmpdatas = substr($this->tmpdata, $this->filesizes, strlen($this->tmpdata));
-                                    $this->tmpdata  = substr($this->tmpdata, 0, $this->filesizes);
-                                }
-                            }
-                            if (strlen($this->tmpdata) == $this->filesizes) {
-                                
-                                if (file_put_contents($this->curpath['path'], $this->tmpdata)) {
-                                    $this->tmpdata = '';
-                                    $this->oldpath = $this->curpath['path'];
-                                    
-                                    if (strlen($this->tmpdatas) > 0) {
-                                        $this->tmpdata  = $this->tmpdatas;
-                                        $this->tmpdatas = '';
-                                    }
-                                    $this->tmpdata_flag = 0;
-                                }
-                                
-                            }
-                        }
+                        echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
                     }
-                    
-                }
-            }
-            
+                               
         }
         
     }
