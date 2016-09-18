@@ -17,7 +17,7 @@
 ###composer 安装
 	{
     		"require": {
-        		"qieangel2013/dfs": "0.1.2"
+        		"qieangel2013/dfs": "0.1.5"
 		 }
 	}
 ###使用介绍
@@ -29,4 +29,7 @@ https://github.com/qieangel2013/dfs/wiki
 ###License
     Apache License Version 2.0 see http://www.apache.org/licenses/LICENSE-2.0.html
 ###如果你对我的辛勤劳动给予肯定，请给我捐赠，你的捐赠是我最大的动力
+支付宝
 ![](https://github.com/qieangel2013/zys/blob/master/public/images/ali.png)
+微信
+![](https://github.com/qieangel2013/zys/blob/master/public/images/weixin.jpeg)
