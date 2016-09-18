@@ -29,7 +29,5 @@ https://github.com/qieangel2013/dfs/wiki
 ###License
     Apache License Version 2.0 see http://www.apache.org/licenses/LICENSE-2.0.html
 ###如果你对我的辛勤劳动给予肯定，请给我捐赠，你的捐赠是我最大的动力
-支付宝
 ![支付宝捐赠](https://github.com/qieangel2013/zys/blob/master/public/images/ali.png "支付宝捐赠")
-微信
 ![微信捐赠](https://github.com/qieangel2013/zys/blob/master/public/images/weixin.jpeg "微信捐赠")
