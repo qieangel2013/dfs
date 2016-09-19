@@ -35,11 +35,11 @@ class FileDistributedClient
     {
         $client = new swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
         $client->set(array(
-            'open_length_check'     => 1,
-            'package_length_type'   => 'N',
-            'package_length_offset' => 0,       //第N个字节是包长度的值
-            'package_body_offset'   => 4,       //第几个字节开始计算长度
-            'package_max_length'    => 1024 * 1024 * 20  //协议最大长度
+            'open_length_check' => 1,
+            'package_length_type' => 'N',
+            'package_length_offset' => 0, //第N个字节是包长度的值
+            'package_body_offset' => 4, //第几个字节开始计算长度
+            'package_max_length' => 1024 * 1024 * 20 //协议最大长度
         ));
         $client->on('Connect', array(
             &$this,
@@ -83,103 +83,103 @@ class FileDistributedClient
     {
         $remote_info = $this->unpackmes($data);
         if (is_array($remote_info)) {
-                    switch ($remote_info['type']) {
-                        case 'filemes':
-                            if (file_exists(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])))) {
-                                $strlendata = file_get_contents(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])));
-                                if (strlen($strlendata) > 0) {
-                                    $datas = array(
-                                        'type' => 'filesize',
-                                        'data' => array(
-                                            'path' => $remote_info['data']['path'],
-                                            'filesize' => strlen($strlendata)
-                                        )
-                                    );
-                                    $client->send($this->packmes($datas));
-                                }
-                            }
-                            break;
-                        case 'filesizemes':
-                            $client->send(pack('N',$remote_info['data']['filesize']));
-                            if ($client->sendfile(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])))) {
-                            }
-                            /*$filesizedata=$remote_info['data']['filesize'];
-                            $filepath=str_replace("@", "_", rawurldecode($remote_info['data']['path']));
-                            swoole_async_read(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])),function($filename,$content) use($client,$filesizedata,$filepath){
-                                if (empty($content)){
-                                    $data_file = array('type' =>'filepool','data'=>array('id'=>md5($filepath),'pathpre' => $filepath,'filesize'=>$filesizedata,'curszize'=>strlen($content),'content'=>$content,'succ'=>0));
-                                    $client->send($this->packmes($data_file));
-                                    return false;
-                                }else{
-                                     $data_file = array('type' =>'filepool','data'=>array('id'=>md5($filepath),'pathpre' => $filepath,'filesize'=>$filesizedata,'curszize'=>strlen($content),'content'=>$content,'succ'=>1));
-                                     $client->send(pack('N', strlen($content)).$content);
-                                    //$client->send($this->packmes($data_file));
-                                    return true;
-                                }
-                                
-                            },8192);*/
-                            break;
-                        case 'system': //启动一个进程来处理已存在的图片
-                            $listenpath       = LISTENPATH;
-                            $this->flagclient = $flagclient = 0;
-                            $process = new swoole_process(function($process) use ($listenpath, $flagclient)
-                            {
-                                if (!$flagclient) {
-                                    $filelist = $this->getlistDirFile($listenpath);
-                                    if (!empty($filelist)) {
-                                        foreach ($filelist as &$v) {
-                                            $process->write($v);
-                                        }
-                                        $flagclient = 1;
-                                    }
-                                }
-                                
-                            });
-                            $process->start();
-                            swoole_event_add($process->pipe, function($pipe) use ($client, $listenpath, $process)
-                            {
-                                $data_l  = $process->read();
-                                $extends = explode("/", $data_l);
-                                $vas     = count($extends) - 1;
-                                $pre_dir = substr($data_l, strlen($listenpath), strlen($data_l));
-                                if (empty($pre_dir)) {
-                                    $data = array(
-                                        'type' => 'asyncfileclient',
-                                        'data' => array(
-                                            'path' => rawurlencode(str_replace("_", "@", $data_l)),
-                                            'fileex' => rawurlencode(str_replace("_", "@", $extends[$vas])),
-                                            'pre' => ''
-                                        )
-                                    );
-                                } else {
-                                    $data = array(
-                                        'type' => 'asyncfileclient',
-                                        'data' => array(
-                                            'path' => rawurlencode(str_replace("_", "@", $data_l)),
-                                            'fileex' => rawurlencode(str_replace("_", "@", $extends[$vas])),
-                                            'pre' => rawurlencode(str_replace("_", "@", $pre_dir))
-                                        )
-                                    );
-                                }
-                                
-                                
-                                $client->send($this->packmes($data));
-                            });
-                            break;
-                        case 'asyncfile':
-                            $data_sa = array(
-                                'type' => 'file',
+            switch ($remote_info['type']) {
+                case 'filemes':
+                    if (file_exists(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])))) {
+                        $strlendata = file_get_contents(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])));
+                        if (strlen($strlendata) > 0) {
+                            $datas = array(
+                                'type' => 'filesize',
                                 'data' => array(
-                                    'path' => $remote_info['data']['path']
+                                    'path' => $remote_info['data']['path'],
+                                    'filesize' => strlen($strlendata)
                                 )
                             );
-                            
-                            $client->send($this->packmes($data_sa));
-                            break;
-                        default:
-                            break;     
-                            
-                    }   
+                            $client->send($this->packmes($datas));
+                        }
+                    }
+                    break;
+                case 'filesizemes':
+                    $client->send(pack('N', $remote_info['data']['filesize']));
+                    if ($client->sendfile(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])))) {
+                    }
+                    /*$filesizedata=$remote_info['data']['filesize'];
+                    $filepath=str_replace("@", "_", rawurldecode($remote_info['data']['path']));
+                    swoole_async_read(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])),function($filename,$content) use($client,$filesizedata,$filepath){
+                    if (empty($content)){
+                    $data_file = array('type' =>'filepool','data'=>array('id'=>md5($filepath),'pathpre' => $filepath,'filesize'=>$filesizedata,'curszize'=>strlen($content),'content'=>$content,'succ'=>0));
+                    $client->send($this->packmes($data_file));
+                    return false;
+                    }else{
+                    $data_file = array('type' =>'filepool','data'=>array('id'=>md5($filepath),'pathpre' => $filepath,'filesize'=>$filesizedata,'curszize'=>strlen($content),'content'=>$content,'succ'=>1));
+                    $client->send(pack('N', strlen($content)).$content);
+                    //$client->send($this->packmes($data_file));
+                    return true;
+                    }
+                    
+                    },8192);*/
+                    break;
+                case 'system': //启动一个进程来处理已存在的图片
+                    $listenpath       = LISTENPATH;
+                    $this->flagclient = $flagclient = 0;
+                    $process = new swoole_process(function($process) use ($listenpath, $flagclient)
+                    {
+                        if (!$flagclient) {
+                            $filelist = $this->getlistDirFile($listenpath);
+                            if (!empty($filelist)) {
+                                foreach ($filelist as &$v) {
+                                    $process->write($v);
+                                }
+                                $flagclient = 1;
+                            }
+                        }
+                        
+                    });
+                    $process->start();
+                    swoole_event_add($process->pipe, function($pipe) use ($client, $listenpath, $process)
+                    {
+                        $data_l  = $process->read();
+                        $extends = explode("/", $data_l);
+                        $vas     = count($extends) - 1;
+                        $pre_dir = substr($data_l, strlen($listenpath), strlen($data_l));
+                        if (empty($pre_dir)) {
+                            $data = array(
+                                'type' => 'asyncfileclient',
+                                'data' => array(
+                                    'path' => rawurlencode(str_replace("_", "@", $data_l)),
+                                    'fileex' => rawurlencode(str_replace("_", "@", $extends[$vas])),
+                                    'pre' => ''
+                                )
+                            );
+                        } else {
+                            $data = array(
+                                'type' => 'asyncfileclient',
+                                'data' => array(
+                                    'path' => rawurlencode(str_replace("_", "@", $data_l)),
+                                    'fileex' => rawurlencode(str_replace("_", "@", $extends[$vas])),
+                                    'pre' => rawurlencode(str_replace("_", "@", $pre_dir))
+                                )
+                            );
+                        }
+                        
+                        
+                        $client->send($this->packmes($data));
+                    });
+                    break;
+                case 'asyncfile':
+                    $data_sa = array(
+                        'type' => 'file',
+                        'data' => array(
+                            'path' => $remote_info['data']['path']
+                        )
+                    );
+                    
+                    $client->send($this->packmes($data_sa));
+                    break;
+                default:
+                    break;
+                    
+            }
             
         } else {
             echo date('[ c ]') . '参数不对 \r\n';
@@ -279,46 +279,46 @@ class FileDistributedClient
         /*$pos        = strpos($data, $format);
         $resultdata = array();
         if ($pos !== false) {
-            $tmpdata = explode($format, $data);
-            foreach ($tmpdata as $k => $v) {
-                if (empty($v)) {
-                    unset($tmpdata[$k]);
-                } else {
-                    $tmpdataex = explode($preformat, $v);
-                    if (empty($tmpdataex[0])) {
-                        $tmpd_data = json_decode($tmpdataex[1], true);
-                        if (!is_array($tmpd_data)) {
-                            array_push($resultdata, $tmpdataex[1]);
-                        } else {
-                            array_push($resultdata, json_decode($tmpdataex[1], true));
-                        }
-                    } else {
-                        array_push($resultdata, $tmpdataex[0]);
-                        array_push($resultdata, json_decode($tmpdataex[1], true));
-                    }
-                    
-                    
-                }
-            }
+        $tmpdata = explode($format, $data);
+        foreach ($tmpdata as $k => $v) {
+        if (empty($v)) {
+        unset($tmpdata[$k]);
+        } else {
+        $tmpdataex = explode($preformat, $v);
+        if (empty($tmpdataex[0])) {
+        $tmpd_data = json_decode($tmpdataex[1], true);
+        if (!is_array($tmpd_data)) {
+        array_push($resultdata, $tmpdataex[1]);
+        } else {
+        array_push($resultdata, json_decode($tmpdataex[1], true));
+        }
+        } else {
+        array_push($resultdata, $tmpdataex[0]);
+        array_push($resultdata, json_decode($tmpdataex[1], true));
+        }
+        
+        
+        }
+        }
+        return $resultdata;
+        } else {
+        return $data;
+        }*/
+        
+        $resultdata = substr($data, 4);
+        $result     = json_decode($resultdata, true);
+        if (!is_array($result)) {
             return $resultdata;
         } else {
-            return $data;
-        }*/
-
-        $resultdata=substr($data, 4);
-        $result=json_decode($resultdata, true);
-        if(!is_array($result)){
-            return $resultdata;
-        }else{
-             return $result;
+            return $result;
         }
-       
+        
     }
     //包装数据
     public function packmes($data, $format = '\r\n\r\n', $preformat = '######')
     {
         //return $preformat . json_encode($data, true) . $format;
-        return pack('N', strlen(json_encode($data, true))).json_encode($data, true);
+        return pack('N', strlen(json_encode($data, true))) . json_encode($data, true);
     }
     //获取目录文件
     public function getlistDirFile($dir)

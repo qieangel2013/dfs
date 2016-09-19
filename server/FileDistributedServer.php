@@ -42,25 +42,25 @@ class FileDistributedServer
             $server->set(array(
                 'worker_num' => 1,
                 //'task_worker_num'         => 8,
-                'dispatch_mode' => 4, //1: 轮循, 3: 争抢
+                'dispatch_mode' => 4,
                 'daemonize' => true,
-                'open_length_check'     => true,
-                'package_length_type'   => 'N',
-				'package_length_offset' => 0,       //第N个字节是包长度的值
-				'package_body_offset'   => 4,       //第几个字节开始计算长度
-				'package_max_length'    => 1024 * 1024 * 20,  //协议最大长度
+                'open_length_check' => true,
+                'package_length_type' => 'N',
+                'package_length_offset' => 0,
+                'package_body_offset' => 4,
+                'package_max_length' => 1024 * 1024 * 20,
                 'log_file' => ServerLog
             ));
         } else {
             $server->set(array(
                 'worker_num' => 1,
                 //'task_worker_num'         => 8,
-                'dispatch_mode' => 4, //1: 轮循, 3: 争抢
-                'open_length_check'     => true,
-                'package_length_type'   => 'N',
-				'package_length_offset' => 0,       //第N个字节是包长度的值
-				'package_body_offset'   => 4,       //第几个字节开始计算长度
-				'package_max_length'    => 1024 * 1024 * 20,  //协议最大长度
+                'dispatch_mode' => 4,
+                'open_length_check' => true,
+                'package_length_type' => 'N',
+                'package_length_offset' => 0,
+                'package_body_offset' => 4,
+                'package_max_length' => 1024 * 1024 * 20,
                 'daemonize' => true
             ));
         }
@@ -243,7 +243,7 @@ class FileDistributedServer
                 $this->filesizes       = $tdf['data']['filesize'];
                 $this->tmpdata_flag    = 1;
             }
-            if (isset($this->curpath['path']) && $this->curpath['path']!=LISTENPATH) {
+            if (isset($this->curpath['path']) && $this->curpath['path'] != LISTENPATH) {
                 if (is_dir(dirname($this->curpath['path'])) && is_readable(dirname($this->curpath['path']))) {
                 } else {
                     FileDistributedClient::getInstance()->mklistDir(dirname($this->curpath['path']));
@@ -272,118 +272,119 @@ class FileDistributedServer
                 }
             }
         } else {
-                if ($remote_info['type'] == 'system' && $remote_info['data']['code'] == 10001) {
-                    if ($this->client_a != $remote_info['data']['fd']) {
-                        if (!$this->table->get(ip2long($remote_info['data']['fd']))) {
-                            $client                                           = FileDistributedClient::getInstance()->addServerClient($remote_info['data']['fd']);
+            if ($remote_info['type'] == 'system' && $remote_info['data']['code'] == 10001) {
+                if ($this->client_a != $remote_info['data']['fd']) {
+                    if (!$this->table->get(ip2long($remote_info['data']['fd']))) {
+                        $client                                                   = FileDistributedClient::getInstance()->addServerClient($remote_info['data']['fd']);
+                        $this->b_server_pool[ip2long($remote_info['data']['fd'])] = array(
+                            'fd' => $remote_info['data']['fd'],
+                            'client' => $client
+                        );
+                        $this->client_a                                           = $remote_info['data']['fd'];
+                    } else {
+                        if (FileDistributedClient::getInstance()->getkey()) {
+                            $client                                                   = FileDistributedClient::getInstance()->addServerClient($remote_info['data']['fd']);
                             $this->b_server_pool[ip2long($remote_info['data']['fd'])] = array(
                                 'fd' => $remote_info['data']['fd'],
                                 'client' => $client
                             );
-                            $this->client_a                                   = $remote_info['data']['fd'];
-                        } else {
-                            if (FileDistributedClient::getInstance()->getkey()) {
-                                $client                                           = FileDistributedClient::getInstance()->addServerClient($remote_info['data']['fd']);
-                                $this->b_server_pool[ip2long($remote_info['data']['fd'])] = array(
-                                    'fd' => $remote_info['data']['fd'],
-                                    'client' => $client
-                                );
-                                $this->client_a                                   = $remote_info['data']['fd'];
-                                if ($this->localip == FileDistributedClient::getInstance()->getkey()) {
-                                    FileDistributedClient::getInstance()->delkey();
-                                }
+                            $this->client_a                                           = $remote_info['data']['fd'];
+                            if ($this->localip == FileDistributedClient::getInstance()->getkey()) {
+                                FileDistributedClient::getInstance()->delkey();
                             }
                         }
-                        
                     }
-                    if ($this->localip != $this->connectioninfo['remote_ip']) {
-                        if (!in_array($this->connectioninfo['remote_ip'], $this->client_pool_ser)) {
-                            $serv->send($fd, FileDistributedClient::getInstance()->packmes(array(
-                                'type' => 'system',
+                    
+                }
+                if ($this->localip != $this->connectioninfo['remote_ip']) {
+                    if (!in_array($this->connectioninfo['remote_ip'], $this->client_pool_ser)) {
+                        $serv->send($fd, FileDistributedClient::getInstance()->packmes(array(
+                            'type' => 'system',
+                            'data' => array(
+                                'code' => 10002,
+                                'fd' => $this->localip
+                            )
+                        )));
+                        array_push($this->client_pool_ser, $this->connectioninfo['remote_ip']);
+                    }
+                }
+                echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
+            } else {
+                switch ($remote_info['type']) {
+                    case 'filesize':
+                        if (isset($remote_info['data']['path'])) {
+                            $data_s = array(
+                                'type' => 'filesizemes',
                                 'data' => array(
-                                    'code' => 10002,
-                                    'fd' => $this->localip
+                                    'path' => $remote_info['data']['path'],
+                                    'filesize' => $remote_info['data']['filesize']
                                 )
-                            )));
-                            array_push($this->client_pool_ser, $this->connectioninfo['remote_ip']);
+                            );
+                            array_push($this->client_pool_ser_c, $remote_info);
+                            $serv->send($fd, FileDistributedClient::getInstance()->packmes($data_s));
                         }
-                    }
-                    echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
-                } else {
-                        switch ($remote_info['type']) {
-                            case 'filesize':
-                                if (isset($remote_info['data']['path'])) {
-                                    $data_s = array(
-                                        'type' => 'filesizemes',
-                                        'data' => array(
-                                            'path' => $remote_info['data']['path'],
-                                            'filesize'=>$remote_info['data']['filesize']
-                                        )
-                                    );
-                                    array_push($this->client_pool_ser_c,$remote_info);
-                                    $serv->send($fd, FileDistributedClient::getInstance()->packmes($data_s));
-                                }
-                                break;
-                            case 'file':
-                                if (isset($remote_info['data']['path'])) {
-                                    if (!file_exists(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])))) {
-                                        $data_s = array(
-                                            'type' => 'filemes',
-                                            'data' => array(
-                                                'path' => $remote_info['data']['path']
-                                            )
-                                        );
-                                        $serv->send($fd, FileDistributedClient::getInstance()->packmes($data_s));
-                                    }
-                                }
-                                break;
-                            case 'asyncfileclient':
-                                if (isset($remote_info['data']['path'])) {
-                                    if (empty($remote_info['data']['pre'])) {
-                                        $dataas = array(
-                                            'type' => 'asyncfile',
-                                            'data' => array(
-                                                'path' => rawurlencode('/') . $remote_info['data']['fileex']
-                                            )
-                                        );
-                                    } else {
-                                        $dataas = array(
-                                            'type' => 'asyncfile',
-                                            'data' => array(
-                                                'path' => $remote_info['data']['pre']
-                                            )
-                                        );
-                                    }
-                                    
-                                    $serv->send($fd, FileDistributedClient::getInstance()->packmes($dataas));
-                                }
-                                break;
-                            case 'fileclient':
-                                if (empty($remote_info['data']['pre'])) {
-                                    $datas = array(
-                                        'type' => 'file',
-                                        'data' => array(
-                                            'path' => rawurlencode('/') . $remote_info['data']['fileex']
-                                        )
-                                    );
-                                } else {
-                                    $datas = array(
-                                        'type' => 'file',
-                                        'data' => array(
-                                            'path' => rawurlencode(rawurldecode($remote_info['data']['pre']) . '/' . rawurldecode($remote_info['data']['fileex']))
-                                        )
-                                    );
-                                }
-                                foreach ($this->b_server_pool as $k => $v) {
-                                	if($v['fd']!=$this->localip) $v['client']->send(FileDistributedClient::getInstance()->packmes($datas));
-                                }
-                                break;
-                            default:                            	
-                                break;
+                        break;
+                    case 'file':
+                        if (isset($remote_info['data']['path'])) {
+                            if (!file_exists(LISTENPATH . str_replace("@", "_", rawurldecode($remote_info['data']['path'])))) {
+                                $data_s = array(
+                                    'type' => 'filemes',
+                                    'data' => array(
+                                        'path' => $remote_info['data']['path']
+                                    )
+                                );
+                                $serv->send($fd, FileDistributedClient::getInstance()->packmes($data_s));
+                            }
                         }
-                        echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
-                    }
-                               
+                        break;
+                    case 'asyncfileclient':
+                        if (isset($remote_info['data']['path'])) {
+                            if (empty($remote_info['data']['pre'])) {
+                                $dataas = array(
+                                    'type' => 'asyncfile',
+                                    'data' => array(
+                                        'path' => rawurlencode('/') . $remote_info['data']['fileex']
+                                    )
+                                );
+                            } else {
+                                $dataas = array(
+                                    'type' => 'asyncfile',
+                                    'data' => array(
+                                        'path' => $remote_info['data']['pre']
+                                    )
+                                );
+                            }
+                            
+                            $serv->send($fd, FileDistributedClient::getInstance()->packmes($dataas));
+                        }
+                        break;
+                    case 'fileclient':
+                        if (empty($remote_info['data']['pre'])) {
+                            $datas = array(
+                                'type' => 'file',
+                                'data' => array(
+                                    'path' => rawurlencode('/') . $remote_info['data']['fileex']
+                                )
+                            );
+                        } else {
+                            $datas = array(
+                                'type' => 'file',
+                                'data' => array(
+                                    'path' => rawurlencode(rawurldecode($remote_info['data']['pre']) . '/' . rawurldecode($remote_info['data']['fileex']))
+                                )
+                            );
+                        }
+                        foreach ($this->b_server_pool as $k => $v) {
+                            if ($v['fd'] != $this->localip)
+                                $v['client']->send(FileDistributedClient::getInstance()->packmes($datas));
+                        }
+                        break;
+                    default:
+                        break;
+                }
+                echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true));
+            }
+            
         }
         
     }
