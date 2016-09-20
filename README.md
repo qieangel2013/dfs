@@ -5,7 +5,7 @@
 ![License](https://img.shields.io/badge/license-Apache%202-yellow.svg)
 ###核心特性
     1.基于swoole和inotify实现分布式文件服务
-    2.文件实时同步服务
+    2.采用协议包来实时同步文件、性能很高，采用sendfile传送文件，内存、cpu占有率很少
     3.文件实时监控及监控子目录服务
     4.自动断线重连服务
     5.自动扫描本地已存在的文件目录实时同步服务
@@ -29,5 +29,4 @@ https://github.com/qieangel2013/dfs/wiki
 ###License
     Apache License Version 2.0 see http://www.apache.org/licenses/LICENSE-2.0.html
 ###如果你对我的辛勤劳动给予肯定，请给我捐赠，你的捐赠是我最大的动力
-![支付宝捐赠](https://github.com/qieangel2013/zys/blob/master/public/images/ali.png "支付宝捐赠")
-![微信捐赠](https://github.com/qieangel2013/zys/blob/master/public/images/weixin.jpeg "微信捐赠")
+![](https://github.com/qieangel2013/zys/blob/master/public/images/pay.png)
