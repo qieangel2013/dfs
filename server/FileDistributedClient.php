@@ -39,7 +39,7 @@ class FileDistributedClient
             'package_length_type' => 'N',
             'package_length_offset' => 0, //第N个字节是包长度的值
             'package_body_offset' => 4, //第几个字节开始计算长度
-            'package_max_length' => 1024 * 1024 * 20 //协议最大长度
+            'package_max_length' => maxpackage //协议最大长度
         ));
         $client->on('Connect', array(
             &$this,
@@ -222,13 +222,14 @@ class FileDistributedClient
         $this->removeuser($this->cur_address);
         $this->del_server[ip2long($this->cur_address)] = $this->cur_address;
         $this->table->del(ip2long($this->cur_address));
-        $this->setkey($this->cur_address);
+        $this->setkey($this->cur_address, file_arg . 'errserfile');
         unset($this->b_client_pool[$this->cur_address]);
         unset($client);
     }
     //获取分布式服务器列表
     public function getserlist($keyname = 'FileDistributed')
     {
+        $keyname = isset($keyname) && !empty($keyname) ? $keyname : 'FileDistributed';
         ob_start();
         dredis::getInstance()->getfd($keyname);
         $result = ob_get_contents();
@@ -238,26 +239,31 @@ class FileDistributedClient
     //添加到分布式服务器列表
     public function appendserlist($data, $score, $keyname = 'FileDistributed')
     {
+        $keyname = isset($keyname) && !empty($keyname) ? $keyname : 'FileDistributed';
         dredis::getInstance()->savefd($data, $score, $keyname);
     }
     //从分布式服务器列表删除
     public function removeuser($data, $keyname = 'FileDistributed')
     {
+        $keyname = isset($keyname) && !empty($keyname) ? $keyname : 'FileDistributed';
         dredis::getInstance()->removefd($data, $keyname);
     }
     //设置错误服务器
     public function setkey($data, $keyname = 'errserfile')
     {
+        $keyname = isset($keyname) && !empty($keyname) ? $keyname : 'errserfile';
         return dredis::getInstance()->setkey($data, $keyname);
     }
     //获取错误服务器
     public function getkey($keyname = 'errserfile')
     {
+        $keyname = isset($keyname) && !empty($keyname) ? $keyname : 'errserfile';
         return dredis::getInstance()->getkey($keyname);
     }
     //删除错误服务器
     public function delkey($keyname = 'errserfile')
     {
+        $keyname = isset($keyname) && !empty($keyname) ? $keyname : 'errserfile';
         return dredis::getInstance()->delkey($keyname);
     }
     //获取目录

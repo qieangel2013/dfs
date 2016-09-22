@@ -9,5 +9,6 @@
 | 日期：2016/7/25
 |---------------------------------------------------------------
 */
+	require_once dirname(__DIR__). '/config/config.php';
 	require_once dirname(__DIR__).'/server/FileDistributedServer.php';
 ?>

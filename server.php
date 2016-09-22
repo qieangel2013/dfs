@@ -10,52 +10,48 @@
 |---------------------------------------------------------------
 */
 // 检查扩展
-if(!extension_loaded('inotify'))
-{
+if (!extension_loaded('inotify')) {
     exit("Please install inotify extension.\n");
 }
-if(!extension_loaded('redis'))
-{
+if (!extension_loaded('redis')) {
     exit("Please install redis extension.\n");
 }
-if(!extension_loaded('swoole'))
-{
+if (!extension_loaded('swoole')) {
     exit("Please install swoole extension.\n");
 }
 //检查是否为cli模式
-if(php_sapi_name() !== 'cli'){
+if (php_sapi_name() !== 'cli') {
     exit("Please use php cli mode.\n");
 }
-$cmd="/usr/local/php/bin/php";//php的绝对路径
 function server_call($cmd)
 {
-
-    foreach(glob(__DIR__.'/server/FileDistributedServer.php') as $start_file)
-    {
-        exec($cmd.' '.$start_file);
+    
+    foreach (glob(__DIR__ . '/server/FileDistributedServer.php') as $start_file) {
+        exec($cmd . ' ' . $start_file);
     }
 }
-$ser_ser=$argv;
-if(!isset($ser_ser[1])){
-     exit("No argv.\n");
- }else{
-switch ($ser_ser[1]) {
-    case 'start':
-        call_user_func('server_call',$cmd);
-        break;
-    case 'stop':
-        exec("ps -ef | grep -E '".$cmd."' |grep -v 'grep'| awk '{print $2}'|xargs kill -9 > /dev/null 2>&1 &");
-        echo "Kill all process success.\n"; 
-        break;
-     case 'restart':
-        exec("ps -ef | grep -E '".$cmd."' |grep -v 'grep'| awk '{print $2}'|xargs kill -9 > /dev/null 2>&1 &");
-        echo "Kill all process success.\n"; 
-        call_user_func('server_call',$cmd);
-        break;
-    default:
-        exit("Not support this argv.\n");
-        break;
+$ser_ser = $argv;
+require_once __DIR__ . '/config/config.php';
+if (!isset($ser_ser[1])) {
+    exit("No argv.\n");
+} else {
+    switch ($ser_ser[1]) {
+        case 'start':
+            call_user_func('server_call', Bincmd);
+            break;
+        case 'stop':
+            exec("ps -ef | grep -E '" . Bincmd . "' |grep -v 'grep'| awk '{print $2}'|xargs kill -9 > /dev/null 2>&1 &");
+            echo "Kill all process success.\n";
+            break;
+        case 'restart':
+            exec("ps -ef | grep -E '" . Bincmd . "' |grep -v 'grep'| awk '{print $2}'|xargs kill -9 > /dev/null 2>&1 &");
+            echo "Kill all process success.\n";
+            call_user_func('server_call', Bincmd);
+            break;
+        default:
+            exit("Not support this argv.\n");
+            break;
     }
- }
+}
 
 ?>
