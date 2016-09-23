@@ -317,7 +317,7 @@ class FileDistributedServer
                     }
                 }
                 if (ServerLog) {
-                    swoole_async_write(ServerLog, date('[ c ]') . str_replace("\n", "", var_export($remote_info, true)) . '\r\n', -1);
+                    file_put_contents(ServerLog, date('[ c ]') . str_replace("\n", "", var_export($remote_info, true)) . '\r\n', FILE_APPEND);
                 } else {
                     echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true)) . '\r\n';
                 }
@@ -399,7 +399,7 @@ class FileDistributedServer
                         break;
                 }
                 if (ServerLog) {
-                    swoole_async_write(ServerLog, date('[ c ]') . str_replace("\n", "", var_export($remote_info, true)) . '\r\n', -1);
+                    file_put_contents(ServerLog, date('[ c ]') . str_replace("\n", "", var_export($remote_info, true)) . '\r\n',FILE_APPEND);
                 } else {
                     echo date('[ c ]') . str_replace("\n", "", var_export($remote_info, true)) . '\r\n';
                 }
@@ -420,7 +420,7 @@ class FileDistributedServer
                 if ($v['fd'] == $fd) {
                     FileDistributedClient::getInstance()->removeuser($v['remote_ip'], file_arg);
                     if (ServerLog) {
-                        swoole_async_write(ServerLog, date('[ c ]') . $v['remote_ip'] . " have closed\r\n", -1);
+                        file_put_contents(ServerLog, date('[ c ]') . $v['remote_ip'] . " have closed\r\n", FILE_APPEND);
                     } else {
                         echo date('[ c ]') . $v['remote_ip'] . " have closed\r\n";
                     }
@@ -430,7 +430,7 @@ class FileDistributedServer
         } else {
             FileDistributedClient::getInstance()->removeuser($this->localip, file_arg);
             if (ServerLog) {
-                swoole_async_write(ServerLog, date('[ c ]') . $this->localip . " have closed\r\n", -1);
+                file_put_contents(ServerLog, date('[ c ]') . $this->localip . " have closed\r\n", FILE_APPEND);
             } else {
                 echo date('[ c ]') . $this->localip . " have closed\r\n";
             }
@@ -443,7 +443,7 @@ class FileDistributedServer
         if (empty($this->client_pool)) {
             FileDistributedClient::getInstance()->removeuser($this->localip, file_arg);
             if (ServerLog) {
-                swoole_async_write(ServerLog, date('[ c ]') . $this->localip . " have closed\r\n", -1);
+                file_put_contents(ServerLog, date('[ c ]') . $this->localip . " have closed\r\n", FILE_APPEND);
             } else {
                 echo date('[ c ]') . $this->localip . " have closed\r\n";
             }
@@ -456,7 +456,7 @@ class FileDistributedServer
         if (empty($this->client_pool)) {
             FileDistributedClient::getInstance()->removeuser($this->localip, file_arg);
             if (ServerLog) {
-                swoole_async_write(ServerLog, date('[ c ]') . $this->localip . " have closed\r\n", -1);
+                file_put_contents(ServerLog, date('[ c ]') . $this->localip . " have closed\r\n", FILE_APPEND);
             } else {
                 echo date('[ c ]') . $this->localip . " have closed\r\n";
             }
