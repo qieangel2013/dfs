@@ -26,6 +26,12 @@
     交流群：337937322
 ### wiki介绍
 https://github.com/qieangel2013/dfs/wiki
+### liveim是一款直播平台，内置im聊天功能
+	由于未开源，需要授权可以获取源代码
+http://www.weivq.com:88/ (演示地址)<br/>
+http://www.weivq.com:88/public/uploads/LiveIm.apk (安卓演示)
+![](https://github.com/qieangel2013/yaf/blob/master/public/images/jt.png)
+![](https://github.com/qieangel2013/yaf/blob/master/public/images/jtmobile.png)
 ### License
     Apache License Version 2.0 see http://www.apache.org/licenses/LICENSE-2.0.html
 ### 如果你对我的辛勤劳动给予肯定，请给我捐赠，你的捐赠是我最大的动力
